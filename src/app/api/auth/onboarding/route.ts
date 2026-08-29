@@ -25,6 +25,8 @@ export async function POST(req: Request) {
 
     const isMockDb = process.env.DATABASE_URL?.includes("USER:PASSWORD@HOST");
     if (isMockDb) {
+      const { updateMockUser } = await import("@/lib/mockDb");
+      updateMockUser(session.user.id, { role, bio, location, website });
       return new Response(JSON.stringify({ message: "Onboarding complete (mocked)" }), { status: 200 });
     }
 

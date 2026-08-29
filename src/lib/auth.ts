@@ -20,12 +20,19 @@ export const authOptions: NextAuthOptions = {
 
         const isMockDb = process.env.DATABASE_URL?.includes("USER:PASSWORD@HOST");
         if (isMockDb) {
-           return {
-             id: "mock-id-123",
-             email: credentials.email,
-             name: "Mock User",
-             role: "STARTUP"
-           };
+          // Dynamic mock DB handling
+          const { getMockUserByEmail } = await import("@/lib/mockDb");
+          const user = getMockUserByEmail(credentials.email);
+          if (!user) return null;
+          // In demo mode, we just check if it matches the mock password
+          if (credentials.password !== user.password && credentials.password !== "password123") return null;
+          
+          return {
+             id: user.id,
+             email: user.email,
+             name: user.name,
+             role: user.role
+          };
         }
 
         const user = await prisma.user.findUnique({
