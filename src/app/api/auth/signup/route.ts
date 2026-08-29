@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ user: { id: user.id, email: user.email, name: user.name } }), { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return new Response(JSON.stringify({ message: "Invalid input", errors: error.errors }), { status: 400 });
+      return new Response(JSON.stringify({ message: "Invalid input", errors: error.issues }), { status: 400 });
     }
     return new Response(JSON.stringify({ message: "Internal server error" }), { status: 500 });
   }

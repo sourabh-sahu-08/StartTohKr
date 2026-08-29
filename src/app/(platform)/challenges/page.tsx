@@ -88,7 +88,7 @@ export default function ChallengesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={filter} onValueChange={setFilter}>
+        <Select value={filter} onValueChange={(v) => setFilter(v || "all")}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
             <SelectValue placeholder="Industry Filter" />
