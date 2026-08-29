@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StartTohKr 🚀
 
-## Getting Started
+**Tagline:** "Where Ideas Meet Opportunities."
 
-First, run the development server:
+StartTohKr is an AI-powered innovation ecosystem built for the **Smart India Hackathon (SIH)**. It serves as a unified bridge connecting **Startups, Government Departments, Investors, Mentors, Industry Partners, and Evaluators** to solve the complete innovation and startup procurement lifecycle.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🌟 The Vision
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **Idea → Showcase → Discovery → Connection → Collaboration → Funding/Pilot → Evaluation → Procurement → Scaling**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Instead of a traditional, clunky government tender portal, StartTohKr operates as a modern ecosystem combining the best elements of:
+- **LinkedIn** (Professional Networking & Identity)
+- **Product Hunt** (Innovation Discovery)
+- **AngelList** (Investment Discovery)
+- **GovTech** (Challenge & Procurement Management)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🏗️ Architecture & Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+StartTohKr is built on a modern, high-performance web architecture:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** shadcn/ui & Radix UI / Base UI
+- **Icons & Animation:** Lucide React & Framer Motion
+- **Database ORM:** Prisma (PostgreSQL ready)
+- **Authentication:** NextAuth.js (Role-based access control)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🚀 Key Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. Unified Identity & Profiles
+Multi-role onboarding system accommodating 7 distinct entity types. Features **Innovation Passports** to track verified credentials, completed pilots, and technical KPIs.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 2. Government Challenge Marketplace
+A centralized hub for government departments to post challenges. Startups can apply directly via the platform with AI-assisted proposal drafting. 
+
+### 3. Innovation Feed & Social Networking
+A dynamic timeline where startups post updates, request pilots, and share milestones. Investors and mentors can like, share, and save innovations.
+
+### 4. Evaluator Console & Blind Mode
+A specialized dashboard for technical evaluators to score proposals on Feasibility, Cost, and Innovation. Features a **Blind Mode** to remove systemic bias during the initial review phase.
+
+### 5. Pilot Management Workspace
+A collaborative Kanban-style board to track ongoing pilots. Monitors real-time KPIs (e.g., Uptime, Traffic Reduction) between government partners and startups.
+
+### 6. StartTohKr AI Copilot
+A globally available AI assistant that helps users discover relevant opportunities, draft complex proposals, and navigate the ecosystem effortlessly.
+
+---
+
+## 🛠️ Getting Started (Local Development)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/sourabh-sahu-08/StartTohKr.git
+   cd StartTohKr
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up Environment Variables**
+   Rename `.env.example` to `.env` and configure your database URL. (The application includes a mock-fallback mode for UI development if a database is not connected).
+
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to view the application.
+
+---
+
+## 📁 Repository Structure
+
+- `/src/app` - Next.js App Router (Pages & API Routes)
+- `/src/components/ui` - Reusable Shadcn UI components
+- `/src/components` - Global application components (e.g., AI Copilot, Layouts)
+- `/src/lib` - Utility functions and authentication configuration
+- `/prisma` - Database schema and configuration
+
+---
+
+*Built with ❤️ for the Smart India Hackathon.*
