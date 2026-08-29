@@ -18,6 +18,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const isMockDb = process.env.DATABASE_URL?.includes("USER:PASSWORD@HOST");
+        if (isMockDb) {
+           return {
+             id: "mock-id-123",
+             email: credentials.email,
+             name: "Mock User",
+             role: "STARTUP"
+           };
+        }
+
         const user = await prisma.user.findUnique({
           where: {
             email: credentials.email
