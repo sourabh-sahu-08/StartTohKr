@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Rocket, Home, Search, Compass, MessageSquare, Bell, User, LogOut, Menu } from "lucide-react";
+import { Rocket, Home, Search, Compass, MessageSquare, Bell, User, LogOut, Menu, Briefcase, Bookmark, Star } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -16,10 +16,12 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   const navItems = [
     { name: "Dashboard", href: `/dashboard/${role}`, icon: Home },
-    { name: "Discover", href: "/discover", icon: Search },
     { name: "Innovation Feed", href: "/feed", icon: Compass },
+    { name: "Opportunities", href: "/opportunities", icon: Briefcase },
+    { name: "Watchlist", href: "/watchlist", icon: Star },
+    { name: "Saved", href: "/saved", icon: Bookmark },
+    { name: "Discover", href: "/discover", icon: Search },
     { name: "Challenges", href: "/challenges", icon: Rocket },
-    { name: "Scaling Hub", href: "/scaling-hub", icon: Rocket },
     { name: "Messages", href: "/messages", icon: MessageSquare },
     { name: "Notifications", href: "/notifications", icon: Bell },
     { name: "Profile", href: "/profile", icon: User },

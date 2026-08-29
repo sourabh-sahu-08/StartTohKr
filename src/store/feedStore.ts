@@ -1,33 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { InnovationPostWithDetails, InnovationWithDetails } from '@/services/innovation/innovation.types';
-import { MOCK_POSTS, MOCK_INNOVATIONS, MOCK_USERS } from '@/repositories/mock/mock-data';
-import { PostType, SignalType, OpportunityStatus, OpportunityType, CommentCategory } from '@prisma/client';
+import { InnovationPostWithDetails } from '@/services/innovation/innovation.types';
+import { DEMO_POSTS, DEMO_USERS } from '@/repositories/mock/demo-data';
+import { PostType, SignalType, CommentCategory } from '@prisma/client';
+import { useInnovationStore } from './innovationStore';
 
-export type DiscoveryMode = 'MOMENTUM' | 'EARLY_IDEAS' | 'PROTOTYPES' | 'READY_TO_PILOT' | 'SCALING' | 'MATCHED';
+export type DiscoveryMode = 'MOMENTUM' | 'EARLY_IDEAS' | 'BUILDING' | 'READY_TO_PILOT' | 'SCALING' | 'MATCHED' | 'FRESH';
 
 interface FeedState {
   posts: InnovationPostWithDetails[];
-  innovations: InnovationWithDetails[];
-  trackedInnovations: string[]; // innovationIds
   discoveryMode: DiscoveryMode;
   
-  // Actions
   setDiscoveryMode: (mode: DiscoveryMode) => void;
   addPost: (post: Omit<InnovationPostWithDetails, 'id' | 'createdAt' | 'updatedAt' | 'signals' | 'comments'>) => void;
-  toggleSignal: (userId: string, postId: string, type: SignalType) => void;
-  toggleTrack: (innovationId: string) => void;
-  addComment: (postId: string, userId: string, category: CommentCategory, content: string) => void;
-  requestOpportunity: (innovationId: string, requesterId: string, type: OpportunityType, message: string) => void;
+  toggleSignal: (userId: string, postId: string | null, innovationId: string | null, type: SignalType) => void;
+  addComment: (postId: string | null, innovationId: string | null, userId: string, category: CommentCategory, content: string) => void;
 }
 
 export const useFeedStore = create<FeedState>()(
   persist(
     (set, get) => ({
-      posts: MOCK_POSTS as any,
-      innovations: MOCK_INNOVATIONS as any,
-      trackedInnovations: [],
+      posts: DEMO_POSTS as any,
       discoveryMode: 'MOMENTUM',
 
       setDiscoveryMode: (mode) => set({ discoveryMode: mode }),
@@ -44,64 +38,66 @@ export const useFeedStore = create<FeedState>()(
         return { posts: [newPost as any, ...state.posts] };
       }),
 
-      toggleSignal: (userId, postId, type) => set((state) => {
-        const newPosts = state.posts.map(post => {
-          if (post.id === postId) {
-            const hasSignaled = post.signals.some(s => s.userId === userId && s.type === type);
-            let newSignals;
-            if (hasSignaled) {
-              newSignals = post.signals.filter(s => !(s.userId === userId && s.type === type));
-            } else {
-              // Remove other signals from this user on this post if any
-              const filtered = post.signals.filter(s => s.userId !== userId);
-              newSignals = [...filtered, { id: `sig-${Date.now()}`, userId, postId, type } as any];
+      toggleSignal: (userId, postId, innovationId, type) => set((state) => {
+        // Handle post signals
+        if (postId) {
+          const newPosts = state.posts.map(post => {
+            if (post.id === postId) {
+              const hasSignaled = post.signals.some(s => s.userId === userId && s.type === type);
+              let newSignals;
+              if (hasSignaled) {
+                newSignals = post.signals.filter(s => !(s.userId === userId && s.type === type));
+              } else {
+                const filtered = post.signals.filter(s => s.userId !== userId);
+                newSignals = [...filtered, { id: `sig-${Date.now()}`, userId, postId, innovationId: null, type, createdAt: new Date() } as any];
+              }
+              return { ...post, signals: newSignals };
             }
-            return { ...post, signals: newSignals };
+            return post;
+          });
+          
+          // Trigger momentum recalculation if it's tied to an innovation
+          const post = state.posts.find(p => p.id === postId);
+          if (post && post.innovationId) {
+             const sigCount = newPosts.find(p => p.id === postId)?.signals.length || 0;
+             useInnovationStore.getState().recalculateMomentum(post.innovationId, sigCount, 10, 2);
           }
-          return post;
-        });
-        return { posts: newPosts };
-      }),
-
-      toggleTrack: (innovationId) => set((state) => {
-        const isTracked = state.trackedInnovations.includes(innovationId);
-        if (isTracked) {
-          return { trackedInnovations: state.trackedInnovations.filter(id => id !== innovationId) };
-        } else {
-          return { trackedInnovations: [...state.trackedInnovations, innovationId] };
+          
+          return { posts: newPosts };
         }
+        return state;
       }),
 
-      addComment: (postId, userId, category, content) => set((state) => {
-        const user = MOCK_USERS.find(u => u.id === userId) || { id: userId, name: "You", role: "STARTUP", image: "" };
+      addComment: (postId, innovationId, userId, category, content) => set((state) => {
+        const user = DEMO_USERS.find(u => u.id === userId) || { id: userId, name: "You", role: "STARTUP", image: "" };
         const newComment = {
           id: `com-${Date.now()}`,
           userId,
           user,
           postId,
+          innovationId,
           category,
           content,
+          parentId: null,
           createdAt: new Date(),
           updatedAt: new Date()
         };
         
-        const newPosts = state.posts.map(post => {
-          if (post.id === postId) {
-            return { ...post, comments: [...post.comments, newComment as any] };
-          }
-          return post;
-        });
-        return { posts: newPosts };
+        if (postId) {
+          const newPosts = state.posts.map(post => {
+            if (post.id === postId) {
+              return { ...post, comments: [...post.comments, newComment as any] };
+            }
+            return post;
+          });
+          return { posts: newPosts };
+        }
+        
+        return state;
       }),
-
-      requestOpportunity: (innovationId, requesterId, type, message) => {
-        // Just mock action, no global state needed unless we build opportunity tracking view
-        console.log(`Opportunity ${type} requested for ${innovationId} by ${requesterId}: ${message}`);
-      }
     }),
     {
-      name: 'starttohkr-feed-storage',
-      // Partialize to not persist date objects properly if not hydrating correctly, but keeping it simple
+      name: 'starttohkr-feed',
     }
   )
 );

@@ -1,243 +1,287 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { InnovationPostWithDetails } from "@/services/innovation/innovation.types";
-import { PostType, SignalType, InnovationStage } from "@prisma/client";
-import { Rocket, Lightbulb, Zap, Eye, MessageSquare, Bookmark, Share2, MoreHorizontal, ArrowRight, ExternalLink } from "lucide-react";
-import { useFeedStore } from "@/store/feedStore";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Flame, Lightbulb, Zap, Rocket, CheckCircle2, MoreHorizontal, Bookmark, Eye, ExternalLink, Activity, Trophy, Building2, Briefcase, Share2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { InnovationPostWithDetails } from "@/services/innovation/innovation.types";
+import { useFeedStore } from "@/store/feedStore";
+import { useUserStore } from "@/store/userStore";
+import { useOpportunityStore } from "@/store/opportunityStore";
+import { PostType, SignalType, OpportunityType } from "@prisma/client";
+import Link from "next/link";
+import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 export function InnovationCard({ post, currentUserId }: { post: InnovationPostWithDetails, currentUserId: string }) {
-  const { toggleSignal, toggleTrack, trackedInnovations } = useFeedStore();
-  const [activeTab, setActiveTab] = useState<'problem' | 'solution' | 'impact'>('problem');
-  const [isOpportunityModalOpen, setOpportunityModalOpen] = useState(false);
-  const [opportunityMsg, setOpportunityMsg] = useState("");
+  const { toggleSignal } = useFeedStore();
+  const { trackedInnovations, toggleTrack, savedInnovations, toggleSave } = useUserStore();
+  const { sendOpportunity } = useOpportunityStore();
+  
+  const [activeTab, setActiveTab] = useState<'PROBLEM' | 'SOLUTION' | 'IMPACT'>('PROBLEM');
+  const [oppModalOpen, setOppModalOpen] = useState(false);
+  const [selectedOpp, setSelectedOpp] = useState<OpportunityType | null>(null);
+  const [oppMessage, setOppMessage] = useState("");
 
-  const isTracked = post.innovationId ? trackedInnovations.includes(post.innovationId) : false;
+  const innovation = post.innovation;
 
-  const handleSignal = (type: SignalType) => {
-    toggleSignal(currentUserId, post.id, type);
-    toast.success(`Marked as ${type.replace('_', ' ')}`);
-  };
+  if (!innovation) return null; // Simplified: assume it's linked for demo
 
-  const handleTrack = () => {
-    if (post.innovationId) {
-      toggleTrack(post.innovationId);
-      toast(isTracked ? "Innovation removed from Watchlist" : "Innovation added to Watchlist");
+  const isTracked = trackedInnovations.includes(innovation.id);
+  const isSaved = savedInnovations.includes(innovation.id);
+
+  const getSignalCount = (type: SignalType) => post.signals.filter(s => s.type === type).length;
+  const userSignal = post.signals.find(s => s.userId === currentUserId)?.type;
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: innovation.title,
+          text: innovation.tagline,
+          url: `${window.location.origin}/innovation/${innovation.id}`
+        });
+      } else {
+        await navigator.clipboard.writeText(`${window.location.origin}/innovation/${innovation.id}`);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const submitOpportunity = () => {
-    setOpportunityModalOpen(false);
-    toast.success("Opportunity intent sent! The founders will be notified.");
+  const handleSendOpportunity = () => {
+    if (!selectedOpp) return;
+    sendOpportunity(currentUserId, innovation.id, selectedOpp, oppMessage);
+    setOppModalOpen(false);
+    toast.success("Opportunity request sent to the startup!");
+    setOppMessage("");
   };
 
-  const getStageColor = (stage: InnovationStage) => {
-    switch (stage) {
-      case 'IDEA': return 'bg-gray-200 text-gray-700';
-      case 'PROTOTYPE': return 'bg-blue-100 text-blue-700';
-      case 'MVP': return 'bg-indigo-100 text-indigo-700';
-      case 'PILOT': return 'bg-amber-100 text-amber-700';
-      case 'SCALING': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100';
-    }
-  };
-
-  const STAGES: InnovationStage[] = ['IDEA', 'PROTOTYPE', 'MVP', 'PILOT', 'SCALING'];
+  const STAGES = ["IDEA", "PROTOTYPE", "MVP", "PILOT", "SCALING"];
+  const currentStageIndex = STAGES.indexOf(innovation.stage);
+  const progressPercent = ((currentStageIndex + 1) / STAGES.length) * 100;
 
   return (
-    <Card className="overflow-hidden border-primary/10 shadow-md hover:shadow-lg transition-all">
-      {/* Identity Strip */}
-      <CardHeader className="p-4 pb-2 border-b bg-muted/20">
-        <div className="flex justify-between items-start">
-          <div className="flex gap-3">
-            <Avatar className="h-10 w-10 border">
-              <AvatarImage src={post.author.image || ''} />
-              <AvatarFallback className="font-bold text-xs">{post.author.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <p className="font-semibold text-sm hover:underline cursor-pointer">{post.author.name}</p>
-                <Badge variant="outline" className="text-[10px] h-5 px-1.5">{post.author.role}</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                {new Date(post.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-
+    <Card className="overflow-hidden border-primary/10 shadow-sm transition-all hover:shadow-md bg-background">
       <CardContent className="p-0">
-        {post.innovation ? (
-          <div className="p-4 space-y-4">
-            {/* Innovation Header */}
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-bold text-amber-600 tracking-wider uppercase">
-                  {post.type.replace('_', ' ')}
-                </span>
-              </div>
-              <h2 className="text-xl font-extrabold tracking-tight cursor-pointer hover:text-indigo-600 transition-colors">
-                {post.innovation.title}
-              </h2>
-              <p className="text-muted-foreground text-sm font-medium mt-1">
-                {post.innovation.tagline}
-              </p>
+        
+        {/* Post Context Header (If it's an update vs just the innovation) */}
+        {post.type !== 'INNOVATION_DROP' && (
+          <div className="bg-muted/30 px-6 py-3 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              {post.type === 'PROGRESS_UPDATE' && <><Activity className="w-4 h-4 text-blue-500" /> Progress Update</>}
+              {post.type === 'IMPACT_REPORT' && <><BarChartIcon className="w-4 h-4 text-emerald-500" /> Impact Report</>}
+              {post.type === 'ACHIEVEMENT' && <><Trophy className="w-4 h-4 text-amber-500" /> Achievement</>}
+              {post.type === 'COLLABORATION_CALL' && <><UsersIcon className="w-4 h-4 text-indigo-500" /> Collab Call</>}
             </div>
-
-            {/* Stage Indicator */}
-            <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50 p-2 rounded-lg">
-              {STAGES.map((s, i) => (
-                <div key={s} className="flex items-center">
-                  <span className={`px-2 py-1 rounded-full transition-colors ${s === post.innovation?.stage ? getStageColor(s) + ' ring-2 ring-primary/20 ring-offset-1' : ''}`}>
-                    {s}
-                  </span>
-                  {i < STAGES.length - 1 && <ArrowRight className="w-3 h-3 mx-1 sm:mx-2 opacity-30" />}
-                </div>
-              ))}
-            </div>
-
-            {/* Problem -> Solution -> Impact Interactive Narrative */}
-            <div className="bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-background border rounded-xl overflow-hidden shadow-sm">
-              <div className="flex border-b text-xs font-bold uppercase tracking-wider">
-                <button 
-                  onClick={() => setActiveTab('problem')} 
-                  className={`flex-1 p-2.5 text-center transition-colors ${activeTab === 'problem' ? 'bg-rose-50 text-rose-700 border-b-2 border-rose-500' : 'text-muted-foreground hover:bg-muted/50'}`}
-                >
-                  Problem
-                </button>
-                <button 
-                  onClick={() => setActiveTab('solution')} 
-                  className={`flex-1 p-2.5 text-center transition-colors ${activeTab === 'solution' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500' : 'text-muted-foreground hover:bg-muted/50'}`}
-                >
-                  Solution
-                </button>
-                <button 
-                  onClick={() => setActiveTab('impact')} 
-                  className={`flex-1 p-2.5 text-center transition-colors ${activeTab === 'impact' ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500' : 'text-muted-foreground hover:bg-muted/50'}`}
-                >
-                  Impact
-                </button>
-              </div>
-              <div className="p-4 text-sm font-medium leading-relaxed min-h-[100px] flex items-center">
-                {activeTab === 'problem' && <p className="animate-in fade-in slide-in-from-left-2 duration-300 text-rose-900/80 dark:text-rose-100/80">{post.innovation.problem}</p>}
-                {activeTab === 'solution' && <p className="animate-in fade-in slide-in-from-left-2 duration-300 text-indigo-900/80 dark:text-indigo-100/80">{post.innovation.solution}</p>}
-                {activeTab === 'impact' && <p className="animate-in fade-in slide-in-from-left-2 duration-300 text-emerald-900/80 dark:text-emerald-100/80">{post.innovation.impact}</p>}
-              </div>
-            </div>
-
-            {/* Post Specific Content (If not just an Innovation Drop) */}
-            {post.type !== 'INNOVATION_DROP' && (
-              <div className="bg-muted/30 p-3 rounded-lg border border-dashed">
-                <p className="text-sm font-medium italic text-muted-foreground">
-                  Update: {JSON.stringify(post.content).substring(1, 100)}...
-                </p>
-              </div>
-            )}
-
-            {/* Technology Stack & Opportunities */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-1.5">
-                {post.innovation.technologies.map(tech => (
-                  <Badge key={tech} variant="secondary" className="text-[10px] font-semibold bg-primary/5 hover:bg-primary/10 text-primary">
-                    {tech}
-                  </Badge>
-                ))}
-              </div>
-              
-              <div className="pt-2 border-t flex flex-wrap gap-2 items-center">
-                <span className="text-xs font-bold text-muted-foreground uppercase">Looking For:</span>
-                <Badge variant="outline" className="cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors" onClick={() => setOpportunityModalOpen(true)}>
-                  💰 Investment
-                </Badge>
-                <Badge variant="outline" className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors" onClick={() => setOpportunityModalOpen(true)}>
-                  🏛 Gov Pilot
-                </Badge>
-              </div>
-            </div>
-
-          </div>
-        ) : (
-          <div className="p-4">
-            <p className="text-sm">{JSON.stringify(post.content)}</p>
+            <span className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</span>
           </div>
         )}
-      </CardContent>
 
-      {/* Action Bar */}
-      <CardFooter className="p-0 border-t bg-muted/10 grid grid-cols-4 divide-x">
-        {/* Signal Dropdown Alternative (Clicking cycles or opens small menu) */}
-        <div className="group relative">
-          <Button variant="ghost" className="w-full rounded-none h-12 gap-1.5 text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50">
-            <Rocket className="h-4 w-4" />
-            <span className="text-xs font-bold uppercase">Signal</span>
-          </Button>
-          {/* Tooltip style popup for signals */}
-          <div className="absolute bottom-full left-0 mb-1 hidden group-hover:flex bg-background border shadow-xl rounded-full p-1.5 gap-1 z-10 animate-in fade-in slide-in-from-bottom-2">
-            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-indigo-100 hover:text-indigo-600" onClick={() => handleSignal('PROMISING')} title="Promising">🚀</Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-amber-100 hover:text-amber-600" onClick={() => handleSignal('INNOVATIVE')} title="Innovative">💡</Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-rose-100 hover:text-rose-600" onClick={() => handleSignal('HIGH_IMPACT')} title="High Impact">🔥</Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-blue-100 hover:text-blue-600" onClick={() => handleSignal('WATCHING')} title="Watching">👀</Button>
+        {/* Post Specific Content */}
+        {post.type !== 'INNOVATION_DROP' && post.content && (
+          <div className="px-6 pt-4 pb-2">
+            {(post.content as any).description && (
+              <p className="text-sm text-foreground/90 leading-relaxed font-medium">{(post.content as any).description}</p>
+            )}
+            {post.type === 'IMPACT_REPORT' && (
+              <div className="mt-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-lg p-3 flex justify-between items-center">
+                <span className="font-bold text-emerald-800 dark:text-emerald-200">{(post.content as any).metricName}</span>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground line-through">{(post.content as any).previousValue}</div>
+                  <div className="font-black text-emerald-600">{(post.content as any).currentValue}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Innovation Core Card */}
+        <div className={`px-6 pt-6 pb-4 ${post.type !== 'INNOVATION_DROP' ? 'bg-muted/10 mx-4 mb-4 mt-2 rounded-xl border' : ''}`}>
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border ring-2 ring-background">
+                <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                  {innovation.title.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="font-extrabold text-lg flex items-center gap-2">
+                  {innovation.title}
+                  {innovation.momentumScore > 70 && (
+                    <span className="flex items-center text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                      <Flame className="w-3 h-3 mr-0.5" /> Trending
+                    </span>
+                  )}
+                </h3>
+                <p className="text-sm text-muted-foreground font-medium flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5" /> {innovation.startup.name}
+                </p>
+              </div>
+            </div>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger render={
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><MoreHorizontal className="h-4 w-4" /></Button>
+              } />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  toggleSave(innovation.id);
+                  toast(isSaved ? "Removed from Saved" : "Saved to Collections");
+                }}>
+                  <Bookmark className="mr-2 h-4 w-4" /> {isSaved ? "Unsave" : "Save for later"}
+                </DropdownMenuItem>
+                <DropdownMenuItem render={
+                  <Link href={`/compare`}><Activity className="mr-2 h-4 w-4" /> Add to Compare</Link>
+                } />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share link</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <p className="text-sm font-semibold mb-6 pr-4">{innovation.tagline}</p>
+
+          {/* Interactive Narrative */}
+          <div className="border rounded-xl overflow-hidden bg-muted/20 mb-6">
+            <div className="flex border-b bg-background/50">
+              {(['PROBLEM', 'SOLUTION', 'IMPACT'] as const).map(tab => (
+                <button
+                  key={tab}
+                  className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'bg-background border-b-2 border-primary text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="p-4 bg-background min-h-[100px] flex items-center">
+              <p className="text-sm leading-relaxed text-foreground/90">
+                {activeTab === 'PROBLEM' && innovation.problem}
+                {activeTab === 'SOLUTION' && innovation.solution}
+                {activeTab === 'IMPACT' && innovation.impact}
+              </p>
+            </div>
+          </div>
+
+          {/* Stage & Tech */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="w-full sm:w-1/2">
+              <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                <span>Stage</span>
+                <span className="text-primary">{innovation.stage}</span>
+              </div>
+              <Progress value={progressPercent} className="h-1.5" />
+            </div>
+            <div className="flex flex-wrap gap-1.5 justify-end">
+              {innovation.technologies.slice(0, 3).map(tech => (
+                <Badge key={tech} variant="secondary" className="text-[10px] font-semibold">{tech}</Badge>
+              ))}
+              {innovation.technologies.length > 3 && (
+                <Badge variant="secondary" className="text-[10px]">+{innovation.technologies.length - 3}</Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Opportunities Row */}
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            <Badge variant="outline" className="border-indigo-200 text-indigo-700 bg-indigo-50 shrink-0 uppercase text-[10px] tracking-wider font-bold">
+              Looking For:
+            </Badge>
+            {/* Hardcoded for demo based on mock data */}
+            <Badge variant="outline" className="cursor-pointer hover:bg-muted shrink-0" onClick={() => { setSelectedOpp('GOVERNMENT_PILOT'); setOppModalOpen(true); }}>🏛 Gov Pilot</Badge>
+            <Badge variant="outline" className="cursor-pointer hover:bg-muted shrink-0" onClick={() => { setSelectedOpp('INVESTMENT'); setOppModalOpen(true); }}>💰 Investment</Badge>
           </div>
         </div>
 
-        <Button variant="ghost" className="w-full rounded-none h-12 gap-1.5 text-muted-foreground hover:text-primary">
-          <MessageSquare className="h-4 w-4" />
-          <span className="text-xs font-bold uppercase">Discuss</span>
-          {post.comments.length > 0 && <span className="ml-1 text-[10px] bg-primary/10 text-primary px-1.5 rounded-full">{post.comments.length}</span>}
-        </Button>
-
-        <Button 
-          variant="ghost" 
-          className={`w-full rounded-none h-12 gap-1.5 text-xs font-bold uppercase transition-colors ${isTracked ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100' : 'text-muted-foreground hover:text-amber-600 hover:bg-amber-50'}`}
-          onClick={handleTrack}
-        >
-          <Bookmark className={`h-4 w-4 ${isTracked ? 'fill-current' : ''}`} />
-          {isTracked ? 'Tracked' : 'Track'}
-        </Button>
-
-        <Button variant="ghost" className="w-full rounded-none h-12 gap-1.5 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50">
-          <ExternalLink className="h-4 w-4" />
-          <span className="text-xs font-bold uppercase">Explore</span>
-        </Button>
-      </CardFooter>
-
-      {/* Opportunity Modal */}
-      <Dialog open={isOpportunityModalOpen} onOpenChange={setOpportunityModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Opportunity Request</DialogTitle>
-            <DialogDescription>
-              Connect with {post.author.name} regarding {post.innovation?.title}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Your Intent</label>
-              <Textarea 
-                placeholder="Hi, we are interested in discussing a pilot deployment..." 
-                rows={4}
-                value={opportunityMsg}
-                onChange={e => setOpportunityMsg(e.target.value)}
-              />
-            </div>
-            <Button className="w-full bg-emerald-600 hover:bg-emerald-700" onClick={submitOpportunity}>
-              Submit Opportunity Intent
+        {/* Action Bar */}
+        <div className="px-4 py-3 border-t bg-background flex flex-wrap gap-2 sm:gap-4 justify-between sm:justify-start">
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-9 px-3 gap-2 ${userSignal === 'PROMISING' ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-muted-foreground hover:bg-muted'}`}
+              onClick={() => toggleSignal(currentUserId, post.id, innovation.id, 'PROMISING')}
+            >
+              <Rocket className="h-4 w-4" /> 
+              <span className="font-semibold">{getSignalCount('PROMISING') > 0 ? getSignalCount('PROMISING') : 'Signal'}</span>
+            </Button>
+            
+            <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 text-muted-foreground hover:bg-muted" render={
+              <Link href={`/innovation/${innovation.id}#discussion`}>
+                <MessageSquareIcon className="h-4 w-4" />
+                <span className="font-semibold">{post.comments?.length || 'Discuss'}</span>
+              </Link>
+            } />
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={`h-9 px-3 gap-2 ${isTracked ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-muted-foreground hover:bg-muted'}`}
+              onClick={() => {
+                const nowTracked = toggleTrack(innovation.id);
+                toast(nowTracked ? "Tracking added to Watchlist" : "Removed from Watchlist");
+              }}
+            >
+              <Eye className="h-4 w-4" /> 
+              <span className="font-semibold">{isTracked ? 'Tracking' : 'Track'}</span>
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+          
+          <Button size="sm" className="h-9 ml-auto bg-primary text-primary-foreground hover:bg-primary/90 font-bold" render={
+            <Link href={`/innovation/${innovation.id}`}>Explore <ExternalLink className="h-3 w-3 ml-1" /></Link>
+          } />
+        </div>
+
+        {/* Opportunity Modal */}
+        <Dialog open={oppModalOpen} onOpenChange={setOppModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Express Interest: {selectedOpp?.replace('_', ' ')}</DialogTitle>
+              <DialogDescription>
+                Send a direct opportunity request to the founders of {innovation.title}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Your Organization</label>
+                <div className="p-3 border rounded-lg bg-muted/50 font-medium">Smart City Indore (Government)</div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Optional Message</label>
+                <Textarea 
+                  placeholder="E.g. We are looking to deploy this in Zone 3..." 
+                  value={oppMessage}
+                  onChange={e => setOppMessage(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOppModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSendOpportunity} className="bg-indigo-600 hover:bg-indigo-700">Send Opportunity Request</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+      </CardContent>
     </Card>
   );
+}
+
+// Missing Lucide Icons
+function BarChartIcon(props: any) {
+  return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>;
+}
+function UsersIcon(props: any) {
+  return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+}
+function MessageSquareIcon(props: any) {
+  return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>;
 }
