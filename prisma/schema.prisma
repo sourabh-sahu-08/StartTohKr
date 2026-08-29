@@ -28,7 +28,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  profile       Profile?
+  profile             Profile?
+  innovations         Innovation[]
+  posts               InnovationPost[]
+  signals             InnovationSignal[]
+  comments            InnovationComment[]
+  trackedInnovations  InnovationTracker[]
+  opportunityRequests InnovationOpportunity[] @relation("OpportunityRequester")
 }
 
 model Profile {
@@ -38,6 +44,168 @@ model Profile {
   bio       String?
   location  String?
   website   String?
+  industry  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum InnovationStage {
+  IDEA
+  PROTOTYPE
+  MVP
+  PILOT
+  SCALING
+}
+
+model Innovation {
+  id        String @id @default(cuid())
+  startupId String
+  startup   User   @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  title        String
+  tagline      String
+  problem      String          @db.Text
+  solution     String          @db.Text
+  impact       String          @db.Text
+  category     String
+  technologies String[]        @default([])
+  stage        InnovationStage @default(IDEA)
+
+  momentumScore Float  @default(0.0)
+  status        String @default("ACTIVE") // ACTIVE, ARCHIVED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts         InnovationPost[]
+  signals       InnovationSignal[]
+  trackers      InnovationTracker[]
+  comments      InnovationComment[]
+  opportunities InnovationOpportunity[]
+}
+
+enum PostType {
+  INNOVATION_DROP
+  PROGRESS_UPDATE
+  IMPACT_REPORT
+  ACHIEVEMENT
+  COLLABORATION_CALL
+  OPEN_QUESTION
+}
+
+model InnovationPost {
+  id           String      @id @default(cuid())
+  innovationId String?
+  innovation   Innovation? @relation(fields: [innovationId], references: [id], onDelete: SetNull)
+  authorId     String
+  author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  type      PostType
+  content   Json // Dynamic content based on PostType
+  mediaUrls String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  signals  InnovationSignal[]
+  comments InnovationComment[]
+}
+
+enum SignalType {
+  PROMISING
+  INNOVATIVE
+  HIGH_IMPACT
+  WATCHING
+}
+
+model InnovationSignal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  innovationId String?
+  innovation   Innovation? @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  postId String?
+  post   InnovationPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  type SignalType
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, innovationId, postId]) // A user can only signal a specific entity once
+}
+
+model InnovationTracker {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, innovationId])
+}
+
+enum OpportunityStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum OpportunityType {
+  INVESTMENT
+  GOVERNMENT_PILOT
+  COLLABORATION
+  MENTORSHIP
+  INDUSTRY_PARTNER
+  PROCUREMENT
+}
+
+model InnovationOpportunity {
+  id          String @id @default(cuid())
+  requesterId String
+  requester   User   @relation("OpportunityRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  type    OpportunityType
+  message String?           @db.Text
+  status  OpportunityStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CommentCategory {
+  INSIGHT
+  QUESTION
+  COLLABORATION
+  FEEDBACK
+  GENERAL
+}
+
+model InnovationComment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  innovationId String?
+  innovation   Innovation? @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  postId String?
+  post   InnovationPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   InnovationComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  InnovationComment[] @relation("CommentReplies")
+
+  category CommentCategory @default(GENERAL)
+  content  String          @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
