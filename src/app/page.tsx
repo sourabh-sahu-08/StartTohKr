@@ -16,8 +16,8 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight">StartTohKr</span>
           </div>
           <nav className="hidden md:flex gap-6 text-sm font-medium">
-            <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>
-            <Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">How it Works</Link>
+            <Link href="/discover" className="text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+            <Link href="/feed" className="text-muted-foreground hover:text-foreground transition-colors">How it Works</Link>
             <Link href="#ecosystem" className="text-muted-foreground hover:text-foreground transition-colors">Ecosystem</Link>
           </nav>
           <div className="flex items-center gap-4">
