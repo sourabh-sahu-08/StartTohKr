@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Briefcase, Building2, Globe, Mail, MapPin, Award, CheckCircle2 } from "lucide-react";
+import { Briefcase, Building2, Globe, Mail, MapPin, Award, CheckCircle2, Bookmark } from "lucide-react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -120,9 +121,10 @@ export default function ProfilePage() {
 
       {/* Tabs Section */}
       <Tabs defaultValue="passport" className="w-full">
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent overflow-x-auto">
           <TabsTrigger value="passport" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3">Innovation Passport</TabsTrigger>
           <TabsTrigger value="portfolio" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3">Portfolio & Pilots</TabsTrigger>
+          <TabsTrigger value="watchlist" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3 text-amber-600">My Watchlist</TabsTrigger>
         </TabsList>
         
         <TabsContent value="passport" className="mt-6 space-y-6">
@@ -177,6 +179,25 @@ export default function ProfilePage() {
                   <div className="bg-primary h-2 rounded-full" style={{ width: '65%' }}></div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2 text-right">65% Complete</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="watchlist" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>My Innovation Watchlist</CardTitle>
+              <CardDescription>Innovations you are actively tracking for progress and opportunities.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border border-dashed rounded-xl p-12 text-center text-muted-foreground flex flex-col items-center">
+                <Bookmark className="w-12 h-12 text-amber-500/20 mb-4" />
+                <p className="font-medium text-lg">Your watchlist is empty.</p>
+                <p className="text-sm mt-1 mb-6">Discover innovations on the feed and click Track to follow their journey.</p>
+                <Button asChild variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100">
+                  <Link href="/feed">Explore Innovations</Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
