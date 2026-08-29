@@ -30,7 +30,7 @@ export default function SavedPage() {
           <Bookmark className="w-12 h-12 text-muted-foreground/30 mb-4" />
           <p className="text-lg font-medium">No Saved Innovations</p>
           <p className="text-sm mt-1 mb-6">Click the save icon on any innovation card to add it here.</p>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold" render={
+          <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold" nativeButton={false} render={
             <Link href="/feed">Discover Innovations</Link>
           } />
         </div>
@@ -50,7 +50,7 @@ export default function SavedPage() {
                   <Button variant="outline" size="sm" className="text-rose-600 flex-1 hover:bg-rose-50" onClick={() => { toggleSave(inv.id); toast("Removed from saved items"); }}>
                     <Trash2 className="w-4 h-4 mr-1" /> Remove
                   </Button>
-                  <Button size="sm" className="flex-1" render={
+                  <Button size="sm" className="flex-1" nativeButton={false} render={
                     <Link href={`/innovation/${inv.id}`}>Explore <ExternalLink className="w-3 h-3 ml-1" /></Link>
                   } />
                 </div>

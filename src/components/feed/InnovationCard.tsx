@@ -214,7 +214,7 @@ export function InnovationCard({ post, currentUserId }: { post: InnovationPostWi
               <span className="font-semibold">{getSignalCount('PROMISING') > 0 ? getSignalCount('PROMISING') : 'Signal'}</span>
             </Button>
             
-            <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 text-muted-foreground hover:bg-muted" render={
+            <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 text-muted-foreground hover:bg-muted" nativeButton={false} render={
               <Link href={`/innovation/${innovation.id}#discussion`}>
                 <MessageSquareIcon className="h-4 w-4" />
                 <span className="font-semibold">{post.comments?.length || 'Discuss'}</span>
@@ -235,7 +235,7 @@ export function InnovationCard({ post, currentUserId }: { post: InnovationPostWi
             </Button>
           </div>
           
-          <Button size="sm" className="h-9 ml-auto bg-primary text-primary-foreground hover:bg-primary/90 font-bold" render={
+          <Button size="sm" className="h-9 ml-auto bg-primary text-primary-foreground hover:bg-primary/90 font-bold" nativeButton={false} render={
             <Link href={`/innovation/${innovation.id}`}>Explore <ExternalLink className="h-3 w-3 ml-1" /></Link>
           } />
         </div>

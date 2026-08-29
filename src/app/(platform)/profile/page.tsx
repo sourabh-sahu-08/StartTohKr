@@ -195,7 +195,7 @@ export default function ProfilePage() {
                 <Bookmark className="w-12 h-12 text-amber-500/20 mb-4" />
                 <p className="font-medium text-lg">Your watchlist is empty.</p>
                 <p className="text-sm mt-1 mb-6">Discover innovations on the feed and click Track to follow their journey.</p>
-                <Button variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100" render={
+                <Button variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100" nativeButton={false} render={
                   <Link href="/feed">Explore Innovations</Link>
                 } />
               </div>

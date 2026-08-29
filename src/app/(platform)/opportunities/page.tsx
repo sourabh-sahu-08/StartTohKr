@@ -92,7 +92,7 @@ export default function OpportunitiesPage() {
             )}
             
             {opp.status === 'ACCEPTED' && (
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" render={
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" nativeButton={false} render={
                 <Link href="/messages"><MessageSquare className="w-4 h-4 mr-1" /> Open Conversation</Link>
               } />
             )}

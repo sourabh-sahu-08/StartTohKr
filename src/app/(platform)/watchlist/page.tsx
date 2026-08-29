@@ -32,7 +32,7 @@ export default function WatchlistPage() {
           <Star className="w-12 h-12 text-muted-foreground/30 mb-4" />
           <p className="text-lg font-medium">Your Innovation Watchlist is Empty</p>
           <p className="text-sm mt-1 mb-6">Track innovations from the feed to receive progress updates.</p>
-          <Button render={
+          <Button nativeButton={false} render={
             <Link href="/feed">Discover Innovations</Link>
           } className="bg-indigo-600 hover:bg-indigo-700 font-bold" />
         </div>
@@ -101,7 +101,7 @@ export default function WatchlistPage() {
                     <Button variant="ghost" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => toggleTrack(inv.id)}>
                       Untrack
                     </Button>
-                    <Button className="bg-primary hover:bg-primary/90" render={
+                    <Button className="bg-primary hover:bg-primary/90" nativeButton={false} render={
                       <Link href={`/innovation/${inv.id}`}>Explore <ExternalLink className="w-3 h-3 ml-1" /></Link>
                     } />
                   </div>

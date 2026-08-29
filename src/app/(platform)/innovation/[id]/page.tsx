@@ -65,14 +65,14 @@ export default function InnovationStoryPage({ params }: { params: Promise<{ id: 
       
       {/* Top Nav */}
       <div className="mb-6 flex justify-between items-center">
-        <Button variant="ghost" className="-ml-4 text-muted-foreground" render={
+        <Button variant="ghost" className="-ml-4 text-muted-foreground" nativeButton={false} render={
           <Link href="/feed"><ChevronLeft className="w-4 h-4 mr-1" /> Back to Feed</Link>
         } />
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { toggleSave(innovation.id); toast(isSaved ? "Removed from Saved" : "Saved to Collections"); }}>
             <Bookmark className={`w-4 h-4 mr-2 ${isSaved ? "fill-current" : ""}`} /> {isSaved ? "Saved" : "Save"}
           </Button>
-          <Button variant="outline" size="sm" className="text-indigo-600" render={
+          <Button variant="outline" size="sm" className="text-indigo-600" nativeButton={false} render={
             <Link href={`/innovation/${innovation.id}/analytics`}>Analytics</Link>
           } />
         </div>
