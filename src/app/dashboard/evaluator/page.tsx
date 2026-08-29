@@ -10,175 +10,188 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { EyeOff, CheckCircle2, FileText, AlertCircle, TrendingUp } from "lucide-react";
 import { useSession } from "next-auth/react";
-
-const INITIAL_PROPOSALS = [
-  {
-    id: 1,
-    challenge: "Smart Traffic Optimization",
-    applicant: "EcoTech Innovations",
-    score: null,
-    status: "pending",
-    techStack: ["AI", "Computer Vision", "IoT"],
-    summary: "A scalable, decentralized computer vision model that analyzes live traffic feeds to dynamically adjust signal times."
-  },
-  {
-    id: 2,
-    challenge: "Smart Traffic Optimization",
-    applicant: "Mobility Networks Inc",
-    score: 85,
-    status: "evaluated",
-    techStack: ["Edge Computing", "5G"],
-    summary: "Hardware-intensive deployment utilizing edge nodes at every major intersection to calculate flow vectors."
-  },
-  {
-    id: 3,
-    challenge: "Rural Health Data Exchange",
-    applicant: "MedChain Systems",
-    score: null,
-    status: "pending",
-    techStack: ["Blockchain", "HL7", "React"],
-    summary: "Secure health record system utilizing private Ethereum networks to ensure patient data immutability and compliance."
-  }
-];
+import { useChallengeStore } from "@/store/challengeStore";
+import { useInnovationStore } from "@/store/innovationStore";
+import { useProfileStore } from "@/store/profileStore";
 
 export default function EvaluatorDashboard() {
   const { data: session } = useSession();
-  const [proposals, setProposals] = useState(INITIAL_PROPOSALS);
-  const [isBlindMode, setIsBlindMode] = useState(true);
-  const [evaluating, setEvaluating] = useState<number | null>(null);
+  const { applications, challenges, updateApplicationStatus, submitEvaluation, evaluations } = useChallengeStore();
+  const { innovations } = useInnovationStore();
+  const { profiles } = useProfileStore();
 
-  const pendingCount = proposals.filter(p => p.status === 'pending').length;
-  const evaluatedCount = proposals.filter(p => p.status === 'evaluated').length;
-  const progress = (evaluatedCount / proposals.length) * 100;
+  const [evaluating, setEvaluating] = useState<string | null>(null);
+  const [evaluationFeedback, setEvaluationFeedback] = useState("");
+  const [evaluationScore, setEvaluationScore] = useState<number>(50);
 
-  const handleSubmitEvaluation = (id: number) => {
-    setProposals(proposals.map(p => p.id === id ? { ...p, status: 'evaluated', score: 90 } : p));
-    setEvaluating(null);
+  const myEvaluations = Object.values(evaluations).filter(e => e.evaluatorId === session?.user?.id);
+  
+  // Evaluators see all SHORTLISTED applications that they haven't evaluated yet
+  const pendingApplications = Object.values(applications).filter(app => 
+    app.status === 'SHORTLISTED' && 
+    !myEvaluations.some(e => e.applicationId === app.id)
+  );
+
+  const completedApplications = Object.values(applications).filter(app => 
+    myEvaluations.some(e => e.applicationId === app.id)
+  );
+
+  const handleSubmitEvaluation = (appId: string) => {
+    submitEvaluation({
+      applicationId: appId,
+      evaluatorId: session?.user?.id || "",
+      score: evaluationScore,
+      feedback: evaluationFeedback
+    });
+    
+    updateApplicationStatus(appId, 'UNDER_REVIEW');
+    
     toast.success("Evaluation submitted successfully.");
+    setEvaluating(null);
+    setEvaluationFeedback("");
+    setEvaluationScore(50);
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 p-4 sm:p-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Evaluator Console</h1>
-          <p className="text-muted-foreground mt-1">Review proposals, assign scores, and shortlist startups.</p>
-        </div>
-        <Button 
-          variant={isBlindMode ? "default" : "outline"} 
-          className={isBlindMode ? "bg-indigo-600 hover:bg-indigo-700" : ""}
-          onClick={() => {
-            setIsBlindMode(!isBlindMode);
-            toast.info(isBlindMode ? "Blind Evaluation disabled." : "Blind Evaluation enabled to reduce bias.");
-          }}
-        >
-          <EyeOff className="w-4 h-4 mr-2" />
-          {isBlindMode ? "Blind Mode: ON" : "Blind Mode: OFF"}
-        </Button>
+    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Evaluator Workspace</h1>
+        <p className="text-muted-foreground mt-1">Review and score shortlisted startup proposals.</p>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-6">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Reviews</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
+            <AlertCircle className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{pendingCount}</div>
+            <div className="text-2xl font-bold">{pendingApplications.length}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Evaluations Completed</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Completed Evaluations</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{evaluatedCount}</div>
+            <div className="text-2xl font-bold">{completedApplications.length}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Completion Rate</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Score Given</CardTitle>
+            <TrendingUp className="h-4 w-4 text-indigo-500" />
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-3xl font-bold">{Math.round(progress)}%</div>
-            <Progress value={progress} className="h-2" />
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {myEvaluations.length > 0 
+                ? Math.round(myEvaluations.reduce((acc, curr) => acc + curr.score, 0) / myEvaluations.length) 
+                : "--"}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold border-b pb-2">Active Queue</h2>
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight">Proposals Awaiting Evaluation</h2>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {proposals.map(proposal => (
-            <Card key={proposal.id} className={`flex flex-col ${proposal.status === 'evaluated' ? 'border-green-200 bg-green-50/10' : ''}`}>
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <Badge variant={proposal.status === 'evaluated' ? 'outline' : 'default'} className={proposal.status === 'evaluated' ? 'text-green-600 border-green-200' : ''}>
-                    {proposal.status === 'evaluated' ? 'Scored' : 'Requires Review'}
-                  </Badge>
-                  {proposal.score && <span className="font-bold text-lg text-primary">{proposal.score}/100</span>}
-                </div>
-                <CardTitle className="text-lg line-clamp-1">{proposal.challenge}</CardTitle>
-                <CardDescription className="font-medium text-primary">
-                  {isBlindMode ? `Applicant #${proposal.id}409` : proposal.applicant}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-4">
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {proposal.summary}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {proposal.techStack.map(tech => (
-                    <span key={tech} className="bg-muted text-xs px-2 py-1 rounded-md">{tech}</span>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter className="border-t p-4 pt-4">
-                {proposal.status === 'evaluated' ? (
-                  <Button variant="outline" className="w-full text-green-700 hover:text-green-800" onClick={() => toast.info("Viewing evaluation summary...")}>
-                    <CheckCircle2 className="w-4 h-4 mr-2" /> View Evaluation
-                  </Button>
-                ) : (
-                  <Dialog open={evaluating === proposal.id} onOpenChange={(open) => !open && setEvaluating(null)}>
-                    <DialogTrigger render={<Button className="w-full" onClick={() => setEvaluating(proposal.id)}>
-                        <FileText className="w-4 h-4 mr-2" /> Evaluate Proposal
+        {pendingApplications.length === 0 ? (
+          <div className="text-center p-12 bg-muted/50 rounded-lg border border-dashed flex flex-col items-center">
+            <EyeOff className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold">You're all caught up!</h3>
+            <p className="text-muted-foreground">No new proposals have been shortlisted for your review yet.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            {pendingApplications.map(app => {
+              const challenge = challenges[app.challengeId];
+              const startup = profiles[app.startupId];
+              const innovation = innovations.find(i => i.id === app.innovationId);
+              
+              return (
+                <Card key={app.id} className="flex flex-col">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        Needs Review
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-xl mt-2">{challenge?.title}</CardTitle>
+                    <CardDescription>
+                      Applicant: {startup?.name || "Unknown Startup"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">Innovation Proposed</p>
+                      <p className="font-medium">{innovation?.title || "Unknown Innovation"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">Pitch</p>
+                      <p className="text-sm line-clamp-3">{app.pitch}</p>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="bg-muted/30 pt-4">
+                    <Dialog open={evaluating === app.id} onOpenChange={(open) => !open && setEvaluating(null)}>
+                      <DialogTrigger render={<Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setEvaluating(app.id)}>
+                        Evaluate Proposal
                       </Button>} />
-                    <DialogContent className="sm:max-w-[600px]">
-                      <DialogHeader>
-                        <DialogTitle>Evaluate Proposal</DialogTitle>
-                        <DialogDescription>
-                          {proposal.challenge} • {isBlindMode ? `Applicant #${proposal.id}409` : proposal.applicant}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4 space-y-6">
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Technical Feasibility (0-40)</h4>
-                          <input type="range" className="w-full" min="0" max="40" defaultValue="30" />
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Evaluate: {startup?.name}</DialogTitle>
+                          <DialogDescription>
+                            Challenge: {challenge?.title}
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-6 py-4">
+                          <div className="p-4 bg-muted/50 rounded-md">
+                            <h4 className="font-semibold mb-2">Applicant's Pitch</h4>
+                            <p className="text-sm whitespace-pre-wrap">{app.pitch}</p>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <label className="text-sm font-medium flex justify-between">
+                              <span>Technical Viability Score</span>
+                              <span className="font-bold text-primary">{evaluationScore}/100</span>
+                            </label>
+                            <input 
+                              type="range" 
+                              min="0" max="100" 
+                              value={evaluationScore} 
+                              onChange={(e) => setEvaluationScore(Number(e.target.value))}
+                              className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Not Viable (0)</span>
+                              <span>Highly Scalable (100)</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Evaluation Feedback</label>
+                            <Textarea 
+                              className="min-h-[100px]"
+                              placeholder="Provide constructive feedback on their technical approach, risks, and scalability..."
+                              value={evaluationFeedback}
+                              onChange={(e) => setEvaluationFeedback(e.target.value)}
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Cost Efficiency (0-30)</h4>
-                          <input type="range" className="w-full" min="0" max="30" defaultValue="25" />
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Innovation (0-30)</h4>
-                          <input type="range" className="w-full" min="0" max="30" defaultValue="20" />
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Evaluator Notes</h4>
-                          <Textarea placeholder="Provide justification for the assigned scores..." />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setEvaluating(null)}>Cancel</Button>
-                        <Button onClick={() => handleSubmitEvaluation(proposal.id)}>Submit Evaluation</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                        
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setEvaluating(null)}>Cancel</Button>
+                          <Button onClick={() => handleSubmitEvaluation(app.id)} className="bg-indigo-600 hover:bg-indigo-700">Submit Evaluation</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
