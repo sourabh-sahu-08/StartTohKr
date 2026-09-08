@@ -71,7 +71,7 @@ export default function OnboardingPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>I am joining as a...</Label>
-                  <Select value={formData.role} onValueChange={(v) => handleChange("role", v)}>
+                  <Select value={formData.role} onValueChange={(v) => handleChange("role", v || "")}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
