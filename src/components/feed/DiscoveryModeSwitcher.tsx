@@ -7,10 +7,11 @@ export function DiscoveryModeSwitcher() {
   const MODES: { value: DiscoveryMode; label: string; icon: React.ReactNode }[] = [
     { value: 'MOMENTUM', label: 'Momentum', icon: <Flame className="w-4 h-4 mr-1.5" /> },
     { value: 'EARLY_IDEAS', label: 'Early Ideas', icon: <Lightbulb className="w-4 h-4 mr-1.5" /> },
-    { value: 'PROTOTYPES', label: 'Prototypes', icon: <Zap className="w-4 h-4 mr-1.5" /> },
+    { value: 'BUILDING', label: 'Building', icon: <Zap className="w-4 h-4 mr-1.5" /> },
     { value: 'READY_TO_PILOT', label: 'Ready to Pilot', icon: <Rocket className="w-4 h-4 mr-1.5" /> },
     { value: 'SCALING', label: 'Scaling', icon: <TrendingUp className="w-4 h-4 mr-1.5" /> },
     { value: 'MATCHED', label: 'Matched For You', icon: <Target className="w-4 h-4 mr-1.5" /> },
+    { value: 'FRESH', label: 'Fresh Drops', icon: <Zap className="w-4 h-4 mr-1.5" /> },
   ];
 
   return (
