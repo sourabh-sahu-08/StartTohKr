@@ -12,20 +12,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Briefcase, Building2, Globe, Mail, MapPin, Award, CheckCircle2, Bookmark } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useProfileStore } from "@/store/profileStore";
+import { useEffect } from "react";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  
+  const currentProfile = useProfileStore(state => state.currentProfile);
+  const updateProfile = useProfileStore(state => state.updateProfile);
+  
   const [profileData, setProfileData] = useState({
-    name: session?.user?.name || "Aarav Tech",
-    role: session?.user?.role || "STARTUP",
-    bio: "Building next-generation AI solutions for agricultural sustainability.",
-    location: "Bangalore, India",
-    website: "https://aarav.tech",
-    email: session?.user?.email || "founder@aarav.tech"
+    name: "", role: "STARTUP", bio: "", location: "", website: "", email: ""
   });
+
+  useEffect(() => {
+    if (currentProfile) {
+      setProfileData({
+        name: currentProfile.name || "",
+        role: currentProfile.role || "STARTUP",
+        bio: currentProfile.bio || "",
+        location: currentProfile.location || "",
+        website: currentProfile.website || "",
+        email: currentProfile.email || ""
+      });
+    }
+  }, [currentProfile]);
+
 
   const handleSave = () => {
     setIsSaving(true);
@@ -36,6 +51,8 @@ export default function ProfilePage() {
       toast.success("Profile updated successfully");
     }, 800);
   };
+
+  if (!currentProfile) return <div className="p-8 text-center text-muted-foreground">Loading profile...</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

@@ -5,12 +5,25 @@ import { usePathname } from "next/navigation";
 import { Rocket, Home, Search, Compass, MessageSquare, Bell, User, LogOut, Menu, Briefcase, Bookmark, Star } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useProfileStore } from "@/store/profileStore";
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const initializeSessionProfile = useProfileStore(state => state.initializeSessionProfile);
+
+  useEffect(() => {
+    if (session?.user) {
+      initializeSessionProfile({
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        role: session.user.role,
+      });
+    }
+  }, [session, initializeSessionProfile]);
 
   const role = session?.user?.role?.toLowerCase().replace('_', '-') || 'startup';
 
