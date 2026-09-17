@@ -23,13 +23,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { role, bio, location, website } = onboardingSchema.parse(body);
 
-    const isMockDb = process.env.DATABASE_URL?.includes("USER:PASSWORD@HOST");
-    if (isMockDb) {
-      const { updateMockUser } = await import("@/lib/mockDb");
-      updateMockUser(session.user.id, { role, bio, location, website });
-      return new Response(JSON.stringify({ message: "Onboarding complete (mocked)" }), { status: 200 });
-    }
-
     // Update user role
     await prisma.user.update({
       where: { id: session.user.id },

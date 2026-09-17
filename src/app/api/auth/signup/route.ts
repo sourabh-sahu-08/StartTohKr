@@ -16,16 +16,6 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, email, password, role } = signupSchema.parse(body);
 
-    const isMockDb = process.env.DATABASE_URL?.includes("USER:PASSWORD@HOST");
-    if (isMockDb) {
-      const { createMockUser, getMockUserByEmail } = await import("@/lib/mockDb");
-      if (getMockUserByEmail(email)) {
-        return new Response(JSON.stringify({ message: "User already exists" }), { status: 409 });
-      }
-      const user = createMockUser({ name, email, password, role: role || "STARTUP" });
-      return new Response(JSON.stringify({ user: { id: user.id, email: user.email, name: user.name } }), { status: 201 });
-    }
-
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,214 +12,217 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Briefcase, Building2, Globe, Mail, MapPin, Award, CheckCircle2, Bookmark } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useProfileStore } from "@/store/profileStore";
-import { useEffect } from "react";
+import { getCurrentProfile, updateProfile } from "@/server/actions/profile";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  
-  const currentProfile = useProfileStore(state => state.currentProfile);
-  const updateProfile = useProfileStore(state => state.updateProfile);
+  const [currentProfile, setCurrentProfile] = useState<any>(null);
   
   const [profileData, setProfileData] = useState({
-    name: "", role: "STARTUP", bio: "", location: "", website: "", email: ""
+    name: "", role: "STARTUP", bio: "", location: "", website: "", email: "", industry: ""
   });
 
-  useEffect(() => {
-    if (currentProfile) {
-      setProfileData({
-        name: currentProfile.name || "",
-        role: currentProfile.role || "STARTUP",
-        bio: currentProfile.bio || "",
-        location: currentProfile.location || "",
-        website: currentProfile.website || "",
-        email: currentProfile.email || ""
-      });
+  const loadProfile = async () => {
+    try {
+      const p = await getCurrentProfile();
+      setCurrentProfile(p);
+      if (p) {
+        setProfileData({
+          name: p.name || "",
+          role: p.role || "STARTUP",
+          bio: p.bio || p.profile?.bio || "",
+          location: p.location || p.profile?.location || "",
+          website: p.profile?.website || "",
+          email: p.email || "",
+          industry: p.profile?.industry || ""
+        });
+      }
+    } catch (error) {
+      console.error(error);
     }
-  }, [currentProfile]);
+  };
 
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadProfile();
+    }
+  }, [session?.user?.id]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    // Mock save delay
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      await updateProfile({
+        name: profileData.name,
+        bio: profileData.bio,
+        location: profileData.location,
+        website: profileData.website,
+        industry: profileData.industry
+      });
+      await loadProfile();
       setIsEditing(false);
       toast.success("Profile updated successfully");
-    }, 800);
+    } catch (error) {
+      toast.error("Failed to update profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!currentProfile) return <div className="p-8 text-center text-muted-foreground">Loading profile...</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12">
       {/* Profile Header */}
       <Card className="overflow-hidden border-none shadow-md">
-        <div className="h-32 bg-primary/10 w-full" />
-        <CardContent className="relative pt-0 pb-6 px-6 sm:px-10">
-          <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-12 sm:-mt-16 mb-4">
-            <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-sm">
-              <AvatarFallback className="text-2xl">{profileData.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+        <div className="h-32 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+        <CardContent className="relative pt-0">
+          <div className="flex justify-between items-end -mt-12 mb-4">
+            <Avatar className="w-24 h-24 border-4 border-background shadow-sm">
+              <AvatarImage src={currentProfile.image || ""} />
+              <AvatarFallback className="text-2xl">{currentProfile.name?.charAt(0) || "U"}</AvatarFallback>
             </Avatar>
-            <div className="flex-1 space-y-1 mb-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-bold">{profileData.name}</h1>
-                {profileData.role === 'STARTUP' && (
-                  <CheckCircle2 className="w-5 h-5 text-primary" />
+            {!isEditing ? (
+              <Button onClick={() => setIsEditing(true)} variant="outline">Edit Profile</Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={() => setIsEditing(false)} variant="ghost">Cancel</Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-4">
+            {!isEditing ? (
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  {currentProfile.name}
+                  <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                </h1>
+                <p className="text-muted-foreground font-medium flex items-center gap-2 mt-1">
+                  <Badge variant="secondary">{currentProfile.role}</Badge>
+                  {currentProfile.profile?.industry && <span>• {currentProfile.profile.industry}</span>}
+                </p>
+                <p className="mt-4 max-w-2xl text-foreground/90 leading-relaxed">
+                  {currentProfile.bio || currentProfile.profile?.bio || "No bio added yet."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 max-w-2xl">
+                <div className="grid gap-2">
+                  <Label>Full Name</Label>
+                  <Input value={profileData.name} onChange={e => setProfileData(p => ({...p, name: e.target.value}))} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Bio</Label>
+                  <Textarea 
+                    value={profileData.bio} 
+                    onChange={e => setProfileData(p => ({...p, bio: e.target.value}))} 
+                    placeholder="Tell us about yourself..."
+                    className="min-h-[100px]"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground pt-4 border-t">
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4" />
+                {isEditing ? (
+                  <Input className="h-8 w-40 text-sm" value={profileData.location} onChange={e => setProfileData(p => ({...p, location: e.target.value}))} placeholder="Location" />
+                ) : (
+                  <span>{currentProfile.location || currentProfile.profile?.location || "Unknown"}</span>
                 )}
               </div>
-              <p className="text-muted-foreground font-medium flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                {profileData.role}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <Mail className="w-4 h-4" />
+                <span>{currentProfile.email}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-4 h-4" />
+                {isEditing ? (
+                  <Input className="h-8 w-48 text-sm" value={profileData.website} onChange={e => setProfileData(p => ({...p, website: e.target.value}))} placeholder="https://" />
+                ) : (
+                  currentProfile.profile?.website ? (
+                    <a href={currentProfile.profile.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      {currentProfile.profile.website}
+                    </a>
+                  ) : "No website"
+                )}
+              </div>
             </div>
-            <div className="flex gap-3 w-full sm:w-auto mb-2">
-              {isEditing ? (
-                <>
-                  <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</Button>
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? "Saving..." : "Save Changes"}
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
-              )}
+            
+            <div className="flex gap-6 pt-2">
+              <div className="flex flex-col">
+                <span className="font-semibold text-lg">{currentProfile._count?.followers || 0}</span>
+                <span className="text-xs text-muted-foreground">Followers</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-lg">{currentProfile._count?.following || 0}</span>
+                <span className="text-xs text-muted-foreground">Following</span>
+              </div>
             </div>
           </div>
-
-          {!isEditing ? (
-            <div className="space-y-6 mt-6">
-              <p className="text-base">{profileData.bio}</p>
-              
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {profileData.location}</div>
-                <div className="flex items-center gap-1"><Globe className="w-4 h-4" /> <a href={profileData.website} className="hover:underline text-primary">{profileData.website.replace('https://', '')}</a></div>
-                <div className="flex items-center gap-1"><Mail className="w-4 h-4" /> {profileData.email}</div>
-              </div>
-
-              <div className="flex gap-6 border-t pt-6">
-                <div>
-                  <span className="font-bold text-lg">142</span>
-                  <span className="text-muted-foreground text-sm ml-1">Followers</span>
-                </div>
-                <div>
-                  <span className="font-bold text-lg">38</span>
-                  <span className="text-muted-foreground text-sm ml-1">Following</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 mt-6">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Display Name</Label>
-                <Input id="name" value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="bio">Bio / Mission</Label>
-                <Textarea id="bio" value={profileData.bio} onChange={e => setProfileData({...profileData, bio: e.target.value})} rows={3} />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input id="location" value={profileData.location} onChange={e => setProfileData({...profileData, location: e.target.value})} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input id="website" value={profileData.website} onChange={e => setProfileData({...profileData, website: e.target.value})} />
-                </div>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Tabs Section */}
-      <Tabs defaultValue="passport" className="w-full">
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent overflow-x-auto">
-          <TabsTrigger value="passport" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3">Innovation Passport</TabsTrigger>
-          <TabsTrigger value="portfolio" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3">Portfolio & Pilots</TabsTrigger>
-          <TabsTrigger value="watchlist" className="data-[state=active]:border-primary data-[state=active]:bg-transparent border-b-2 border-transparent rounded-none px-6 py-3 text-amber-600">My Watchlist</TabsTrigger>
+      <Tabs defaultValue="activity" className="w-full">
+        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+          <TabsTrigger value="about">About & Details</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="passport" className="mt-6 space-y-6">
+        <TabsContent value="activity" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-primary" />
-                Verified Credentials
-              </CardTitle>
-              <CardDescription>Badges and verifications earned on StartTohKr.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-medium">
-                  <CheckCircle2 className="w-4 h-4" /> KYC Verified
-                </div>
-                <div className="flex items-center gap-2 bg-blue-500/10 text-blue-600 px-3 py-1.5 rounded-full text-sm font-medium">
-                  <Briefcase className="w-4 h-4" /> Completed 1+ Govt Pilot
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Core Technologies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {['Artificial Intelligence', 'Machine Learning', 'Computer Vision', 'IoT Sensors', 'Predictive Analytics'].map(tech => (
-                  <span key={tech} className="border px-3 py-1 rounded-md text-sm">{tech}</span>
-                ))}
-              </div>
+            <CardContent className="p-12 text-center text-muted-foreground flex flex-col items-center">
+              <Award className="w-12 h-12 mb-4 text-muted/50" />
+              <p>No recent activity to show.</p>
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="portfolio" className="mt-6">
+        <TabsContent value="about" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Active Pilots</CardTitle>
-              <CardDescription>Government and industry pilots currently underway.</CardDescription>
+              <CardTitle>Professional Details</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="border rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">Crop Health Monitoring Pilot</h3>
-                  <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">In Progress</span>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground mb-1">Role</h4>
+                  <p className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-muted-foreground"/> {currentProfile.role}</p>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">Partner: Ministry of Agriculture</p>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-primary h-2 rounded-full" style={{ width: '65%' }}></div>
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground mb-1">Industry Focus</h4>
+                  <p className="flex items-center gap-2"><Building2 className="w-4 h-4 text-muted-foreground"/> {currentProfile.profile?.industry || "Not specified"}</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 text-right">65% Complete</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="watchlist" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Innovation Watchlist</CardTitle>
-              <CardDescription>Innovations you are actively tracking for progress and opportunities.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="border border-dashed rounded-xl p-12 text-center text-muted-foreground flex flex-col items-center">
-                <Bookmark className="w-12 h-12 text-amber-500/20 mb-4" />
-                <p className="font-medium text-lg">Your watchlist is empty.</p>
-                <p className="text-sm mt-1 mb-6">Discover innovations on the feed and click Track to follow their journey.</p>
-                <Button variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100" nativeButton={false} render={
-                  <Link href="/feed">Explore Innovations</Link>
-                } />
+                <div className="md:col-span-2">
+                  <h4 className="font-medium text-sm text-muted-foreground mb-2">Skills & Technologies</h4>
+                  <div className="flex gap-2 flex-wrap">
+                    {currentProfile.skills?.length > 0 ? currentProfile.skills.map((skill: string) => (
+                      <Badge key={skill} variant="secondary">{skill}</Badge>
+                    )) : (
+                      <p className="text-sm text-muted-foreground">No skills added yet.</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Remove the unused Badge import or component logic if it exists at the top. Let's make sure Badge is imported! */}
     </div>
+  );
+}
+
+function Badge({ children, variant, className }: any) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${variant === 'secondary' ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground'} ${className}`}>
+      {children}
+    </span>
   );
 }
