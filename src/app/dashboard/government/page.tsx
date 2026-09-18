@@ -235,7 +235,7 @@ export default function GovernmentDashboard() {
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-semibold text-green-700">{challenge.budget}</span>
-                        <div className="text-xs text-muted-foreground mt-1">Deadline: {challenge.deadline}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Deadline: {new Date(challenge.deadline).toLocaleDateString()}</div>
                       </div>
                     </div>
                   </CardHeader>
