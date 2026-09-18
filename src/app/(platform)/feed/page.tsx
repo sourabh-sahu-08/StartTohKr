@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useFeedStore } from "@/store/feedStore";
 import { CreateInnovationPost } from "@/components/feed/CreateInnovationPost";
 import { DiscoveryModeSwitcher } from "@/components/feed/DiscoveryModeSwitcher";
@@ -8,68 +8,18 @@ import { InnovationCard } from "@/components/feed/InnovationCard";
 import { OpportunityDetectedCard } from "@/components/feed/OpportunityDetectedCard";
 import { AdvancedFilters } from "@/components/feed/AdvancedFilters";
 import { useSession } from "next-auth/react";
-import { InnovationPostWithDetails } from "@/services/innovation/innovation.types";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 
 export default function InnovationFeedPage() {
   const { data: session } = useSession();
-  const currentUserId = session?.user?.id || "usr-gov-2"; // default to Smart City Indore
+  const currentUserId = session?.user?.id || "";
   
-  const { posts, discoveryMode } = useFeedStore();
+  const { posts, discoveryMode, search, setSearch, filters, setFilters, isLoading, fetchPosts } = useFeedStore();
   
-  const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState({
-    industry: [], stage: [], tech: [], opps: []
-  });
-
-  // Deterministic Discovery Algorithm
-  const getSortedPosts = (mode: string, allPosts: InnovationPostWithDetails[]) => {
-    let postsCopy = [...allPosts];
-    
-    // Apply Search
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      postsCopy = postsCopy.filter(p => 
-        p.innovation?.title.toLowerCase().includes(s) ||
-        p.innovation?.problem.toLowerCase().includes(s) ||
-        p.innovation?.category.toLowerCase().includes(s)
-      );
-    }
-    
-    // Apply Advanced Filters
-    if (activeFilters.industry.length > 0) {
-      postsCopy = postsCopy.filter(p => p.innovation && activeFilters.industry.includes(p.innovation.category as never));
-    }
-    if (activeFilters.stage.length > 0) {
-      postsCopy = postsCopy.filter(p => p.innovation && activeFilters.stage.includes(p.innovation.stage as never));
-    }
-
-    switch (mode) {
-      case 'MOMENTUM':
-        return postsCopy.sort((a, b) => (b.innovation?.momentumScore || 0) - (a.innovation?.momentumScore || 0));
-      case 'EARLY_IDEAS':
-        return postsCopy.filter(p => p.innovation?.stage === 'IDEA' || p.innovation?.stage === 'PROTOTYPE');
-      case 'BUILDING':
-        return postsCopy.filter(p => p.innovation?.stage === 'PROTOTYPE' || p.innovation?.stage === 'MVP');
-      case 'READY_TO_PILOT':
-        return postsCopy.filter(p => p.innovation?.stage === 'MVP' || p.innovation?.stage === 'PILOT');
-      case 'SCALING':
-        return postsCopy.filter(p => p.innovation?.stage === 'SCALING');
-      case 'FRESH':
-        return postsCopy.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      case 'MATCHED':
-        // For demo, sort by Smart City / Climate Tech
-        return postsCopy.sort((a, b) => {
-          if (a.innovation?.category === 'Smart Cities' || a.innovation?.category === 'WaterTech') return -1;
-          return 1;
-        });
-      default:
-        return postsCopy;
-    }
-  };
-
-  const filteredPosts = getSortedPosts(discoveryMode, posts);
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
@@ -79,7 +29,7 @@ export default function InnovationFeedPage() {
           Innovation Discovery
         </h1>
         <p className="text-muted-foreground font-medium">
-          Where ideas don&apos;t just get likes. They find opportunities.
+          Where ideas don't just get likes. They find opportunities.
         </p>
       </div>
 
@@ -95,36 +45,41 @@ export default function InnovationFeedPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <AdvancedFilters activeFilters={activeFilters} setActiveFilters={setActiveFilters} />
+        <AdvancedFilters activeFilters={filters} setActiveFilters={setFilters} />
       </div>
 
       <DiscoveryModeSwitcher />
 
       <div className="space-y-8 mt-6">
-        {filteredPosts.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center p-16 flex flex-col items-center">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">Discovering innovations...</p>
+          </div>
+        ) : posts.length === 0 ? (
           <div className="text-center p-16 border-2 border-dashed rounded-xl bg-muted/20 text-muted-foreground font-medium flex flex-col items-center">
             <Search className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <p className="text-lg">No innovations match your discovery.</p>
             <p className="text-sm mt-1 mb-6">Try adjusting your filters or search terms.</p>
             <button 
               className="text-indigo-600 font-bold hover:underline"
-              onClick={() => { setSearch(""); setActiveFilters({ industry: [], stage: [], tech: [], opps: [] }); }}
+              onClick={() => { setSearch(""); setFilters({ industry: [], stage: [], tech: [], opps: [] }); }}
             >
               Clear All Filters
             </button>
           </div>
         ) : (
-          filteredPosts.map((post, index) => (
+          posts.map((post: any, index: number) => (
             <div key={post.id}>
               {index === 1 && discoveryMode === 'MATCHED' && (
                 <OpportunityDetectedCard 
                   matchPercentage={94}
                   reasons={[
-                    "Matches your Smart City infrastructure focus",
+                    "Matches your infrastructure focus",
                     "Pilot stage aligns with your current procurement capacity",
-                    "High momentum among other municipal agencies"
+                    "High momentum among other agencies"
                   ]}
-                  innovationName="CleanRoute Systems"
+                  innovationName={post.innovation?.title || "Solution"}
                 />
               )}
               

@@ -1,125 +1,91 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { getChallenges, createChallenge as serverCreateChallenge, submitApplication as serverSubmitApp } from '@/server/actions/challenges';
 
 export interface Challenge {
   id: string;
   title: string;
   department: string;
-  location: string;
-  deadline: string;
+  location?: string;
+  deadline: Date;
   budget: string;
-  tags: string[];
-  status: 'DRAFT' | 'OPEN' | 'IN_REVIEW' | 'CLOSED';
+  category: string;
+  status: string;
   description: string;
   authorId: string;
-}
-
-export interface Application {
-  id: string;
-  challengeId: string;
-  startupId: string;
-  innovationId: string;
-  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'SHORTLISTED' | 'SELECTED' | 'REJECTED';
-  submittedAt: string;
-  pitch: string;
-}
-
-export interface Evaluation {
-  id: string;
-  applicationId: string;
-  evaluatorId: string;
-  score: number;
-  feedback: string;
-  submittedAt: string;
+  applications?: any[];
 }
 
 interface ChallengeState {
-  challenges: Record<string, Challenge>;
-  applications: Record<string, Application>;
-  evaluations: Record<string, Evaluation>;
-
-  createChallenge: (challenge: Omit<Challenge, 'id'>) => Challenge;
-  updateChallengeStatus: (id: string, status: Challenge['status']) => void;
+  challenges: Challenge[];
+  applications: any[];
+  evaluations: any[];
+  isLoading: boolean;
   
-  applyToChallenge: (application: Omit<Application, 'id' | 'status' | 'submittedAt'>) => Application;
-  updateApplicationStatus: (id: string, status: Application['status']) => void;
-
-  submitEvaluation: (evaluation: Omit<Evaluation, 'id' | 'submittedAt'>) => Evaluation;
+  fetchChallenges: () => Promise<void>;
+  getChallenge: (id: string) => Challenge | undefined;
+  createChallenge: (challenge: any) => Promise<void>;
+  updateChallengeStatus: (id: string, status: any) => void;
+  updateApplicationStatus: (id: string, status: any) => void;
+  updateEvaluationStatus: (id: string, status: any) => void;
+  
+  submitApplication: (app: any) => Promise<void>;
+  submitEvaluation: (evalData: any) => void;
 }
 
-const INITIAL_CHALLENGES: Record<string, Challenge> = {
-  "chal-1": {
-    id: "chal-1",
-    title: "AI for Crop Disease Detection",
-    department: "Ministry of Agriculture",
-    location: "National",
-    deadline: "2026-10-15",
-    budget: "$50,000 Pilot",
-    tags: ["Agriculture", "AI/ML", "Computer Vision"],
-    status: "OPEN",
-    description: "We are seeking scalable AI solutions that can detect early signs of common crop diseases via drone imagery. The solution must operate effectively in low-bandwidth rural areas.",
-    authorId: "usr-gov-3"
-  },
-  "chal-2": {
-    id: "chal-2",
-    title: "Smart Traffic Optimization",
-    department: "Municipal Corporation",
-    location: "Bangalore",
-    deadline: "2026-09-30",
-    budget: "$120,000 Deployment",
-    tags: ["Smart City", "IoT", "Traffic"],
-    status: "OPEN",
-    description: "Looking for an integrated IoT and AI solution to optimize traffic light timings based on real-time vehicle density to reduce average wait times by 20%.",
-    authorId: "usr-gov-2"
-  }
-};
-
 export const useChallengeStore = create<ChallengeState>()(
-  persist(
-    (set, get) => ({
-      challenges: INITIAL_CHALLENGES,
-      applications: {},
-      evaluations: {},
-
-      createChallenge: (challenge) => {
-        const id = `chal-${Date.now()}`;
-        const newChallenge = { ...challenge, id };
-        set(state => ({ challenges: { ...state.challenges, [id]: newChallenge } }));
-        return newChallenge;
-      },
-      
-      updateChallengeStatus: (id, status) => {
-        set(state => ({
-          challenges: {
-            ...state.challenges,
-            [id]: { ...state.challenges[id], status }
-          }
-        }));
-      },
-
-      applyToChallenge: (app) => {
-        const id = `app-${Date.now()}`;
-        const newApp: Application = { ...app, id, status: 'SUBMITTED', submittedAt: new Date().toISOString() };
-        set(state => ({ applications: { ...state.applications, [id]: newApp } }));
-        return newApp;
-      },
-
-      updateApplicationStatus: (id, status) => {
-        set(state => ({
-          applications: {
-            ...state.applications,
-            [id]: { ...state.applications[id], status }
-          }
-        }));
-      },
-
-      submitEvaluation: (evalData) => {
-        const id = `eval-${Date.now()}`;
-        const newEval: Evaluation = { ...evalData, id, submittedAt: new Date().toISOString() };
-        set(state => ({ evaluations: { ...state.evaluations, [id]: newEval } }));
-        return newEval;
+  (set, get) => ({
+    challenges: [],
+    applications: [],
+    evaluations: [],
+    isLoading: false,
+    
+    fetchChallenges: async () => {
+      set({ isLoading: true });
+      try {
+        const data = await getChallenges();
+        set({ challenges: data as any[] });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set({ isLoading: false });
       }
-    }),
-    { name: 'starttohkr-challenge-storage' }
-  )
+    },
+
+    getChallenge: (id) => get().challenges.find(c => c.id === id),
+    
+    createChallenge: async (challengeData) => {
+      try {
+        await serverCreateChallenge({
+          title: challengeData.title,
+          department: challengeData.department,
+          description: challengeData.description,
+          category: challengeData.category,
+          budget: challengeData.budget,
+          deadline: new Date(challengeData.deadline)
+        });
+        await get().fetchChallenges();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    
+    updateChallengeStatus: (id, status) => set((state) => ({
+      challenges: state.challenges.map(c => c.id === id ? { ...c, status } : c)
+    })),
+    updateApplicationStatus: (id, status) => set((state) => ({ applications: state.applications.map(a => a.id === id ? { ...a, status } : a) })),
+    updateEvaluationStatus: (id, status) => set((state) => ({ evaluations: state.evaluations.map(e => e.id === id ? { ...e, status } : e) })),
+    
+    submitApplication: async (app) => {
+      try {
+        await serverSubmitApp(app.challengeId, app.innovationId, app.pitch);
+        await get().fetchChallenges();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    
+    submitEvaluation: (evalData) => set((state) => ({
+      evaluations: [...state.evaluations, evalData]
+    }))
+  })
 );

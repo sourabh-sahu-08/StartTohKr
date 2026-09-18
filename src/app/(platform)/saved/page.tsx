@@ -1,20 +1,43 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useUserStore } from "@/store/userStore";
-import { useInnovationStore } from "@/store/innovationStore";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bookmark, ExternalLink, Trash2 } from "lucide-react";
+import { Bookmark, ExternalLink, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { getSavedItems } from "@/server/actions/collections";
+import { toggleSave } from "@/server/actions/interactions";
 
 export default function SavedPage() {
-  const { savedInnovations, toggleSave } = useUserStore();
-  const { innovations } = useInnovationStore();
+  const [savedList, setSavedList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const savedList = savedInnovations.map(id => innovations.find(i => i.id === id)).filter(Boolean) as any[];
+  const loadSaves = async () => {
+    try {
+      const data = await getSavedItems();
+      setSavedList(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSaves();
+  }, []);
+
+  const handleUnsave = async (id: string) => {
+    try {
+      await toggleSave('INNOVATION', id);
+      toast.success("Removed from Saved");
+      setSavedList(prev => prev.filter(i => i.id !== id));
+    } catch (e) {
+      toast.error("Failed to remove");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
@@ -22,37 +45,44 @@ export default function SavedPage() {
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-3">
           <Bookmark className="w-8 h-8 text-indigo-500 fill-indigo-500/20" /> Saved Collections
         </h1>
-        <p className="text-muted-foreground">Innovations you&apos;ve bookmarked to review later.</p>
+        <p className="text-muted-foreground">Innovations you've bookmarked to review later.</p>
       </div>
 
-      {savedList.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+      ) : savedList.length === 0 ? (
         <div className="text-center p-16 border-2 border-dashed rounded-xl bg-muted/20 text-muted-foreground flex flex-col items-center">
           <Bookmark className="w-12 h-12 text-muted-foreground/30 mb-4" />
-          <p className="text-lg font-medium">No Saved Innovations</p>
-          <p className="text-sm mt-1 mb-6">Click the save icon on any innovation card to add it here.</p>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 font-bold" nativeButton={false} render={
-            <Link href="/feed">Discover Innovations</Link>
-          } />
+          <p className="text-lg font-medium">No saved innovations yet.</p>
+          <p className="text-sm mt-1 mb-6">Discover innovations and bookmark them here for easy access.</p>
+          <Button render={<Link href="/feed" />}>Discover Innovations</Button>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {savedList.map(inv => (
-            <Card key={inv.id} className="overflow-hidden border-primary/10">
-              <CardContent className="p-5 flex flex-col h-full">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg leading-tight">{inv.title}</h3>
-                  <Badge variant="outline">{inv.stage}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground font-medium mb-4">{inv.startup.name} • {inv.category}</p>
-                <p className="text-sm text-foreground/80 mb-6 flex-1 line-clamp-2">{inv.tagline}</p>
-                
-                <div className="flex gap-2 mt-auto">
-                  <Button variant="outline" size="sm" className="text-rose-600 flex-1 hover:bg-rose-50" onClick={() => { toggleSave(inv.id); toast("Removed from saved items"); }}>
-                    <Trash2 className="w-4 h-4 mr-1" /> Remove
-                  </Button>
-                  <Button size="sm" className="flex-1" nativeButton={false} render={
-                    <Link href={`/innovation/${inv.id}`}>Explore <ExternalLink className="w-3 h-3 ml-1" /></Link>
-                  } />
+        <div className="grid gap-4">
+          {savedList.map(innovation => (
+            <Card key={innovation.id} className="overflow-hidden hover:shadow-md transition-all">
+              <CardContent className="p-0">
+                <div className="flex items-start sm:items-center p-5 gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                    <span className="font-bold text-indigo-600">{innovation.title.charAt(0)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Link href={`/innovation/${innovation.id}`} className="font-bold text-lg truncate hover:underline">
+                        {innovation.title}
+                      </Link>
+                      <Badge variant="outline" className="bg-primary/5">{innovation.stage}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{innovation.startup?.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleUnsave(innovation.id)} className="text-muted-foreground hover:text-red-500 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button render={<Link href={`/innovation/${innovation.id}`} />} variant="outline" size="sm" className="hidden sm:flex">
+                      View <ExternalLink className="w-3 h-3 ml-2" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

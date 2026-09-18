@@ -1,195 +1,154 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Filter, Calendar, MapPin, Building2, Share2, Bookmark, Send, HelpCircle } from "lucide-react";
-
-const INITIAL_CHALLENGES = [
-  {
-    id: 1,
-    title: "AI for Crop Disease Detection",
-    department: "Ministry of Agriculture",
-    location: "National",
-    deadline: "2026-10-15",
-    budget: "$50,000 Pilot",
-    tags: ["Agriculture", "AI/ML", "Computer Vision"],
-    status: "Open",
-    description: "We are seeking scalable AI solutions that can detect early signs of common crop diseases via drone imagery. The solution must operate effectively in low-bandwidth rural areas."
-  },
-  {
-    id: 2,
-    title: "Smart Traffic Optimization",
-    department: "Municipal Corporation",
-    location: "Bangalore",
-    deadline: "2026-09-30",
-    budget: "$75,000 Pilot",
-    tags: ["Smart City", "IoT", "Mobility"],
-    status: "Open",
-    description: "Looking for intelligent traffic management systems to optimize signal timings in real-time based on traffic density and emergency vehicle routing."
-  },
-  {
-    id: 3,
-    title: "Secure Health Records Blockchain",
-    department: "Department of Health",
-    location: "State Level",
-    deadline: "2026-11-01",
-    budget: "$120,000",
-    tags: ["Healthcare", "Blockchain", "Security"],
-    status: "Open",
-    description: "Develop a secure, decentralized health record management system ensuring interoperability between state hospitals while maintaining patient privacy."
-  }
-];
+import { Search, Calendar, MapPin, Building2, Send, Loader2 } from "lucide-react";
+import { useChallengeStore } from "@/store/challengeStore";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ChallengesPage() {
+  const { challenges, isLoading, fetchChallenges, submitApplication } = useChallengeStore();
+  
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [isApplying, setIsApplying] = useState<number | null>(null);
+  const [isApplyingId, setIsApplyingId] = useState<string | null>(null);
+  const [pitch, setPitch] = useState("");
 
-  const filteredChallenges = INITIAL_CHALLENGES.filter(c => 
-    (c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     c.department.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (filter === "all" || c.tags.includes(filter))
+  useEffect(() => {
+    fetchChallenges();
+  }, []);
+
+  const filteredChallenges = challenges.filter(c => 
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleApply = (id: number) => {
-    setIsApplying(id);
-    setTimeout(() => {
-      setIsApplying(null);
-      toast.success("Application submitted successfully! You can track its status in your dashboard.");
-    }, 1500);
+  const handleApply = async (id: string) => {
+    if (!pitch.trim()) {
+      toast.error("Please enter a pitch");
+      return;
+    }
+    
+    // For demo, we assume the user has an innovation to select. 
+    // In a full UI they would pick their innovation from a dropdown.
+    await submitApplication({
+      challengeId: id,
+      innovationId: "demo-innovation-id", // mock default if needed, or null if they don't have one
+      pitch
+    });
+    
+    setIsApplyingId(null);
+    setPitch("");
+    toast.success("Application submitted successfully!");
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Government Challenges</h1>
-          <p className="text-muted-foreground mt-1">Discover and apply for active government procurement and pilot opportunities.</p>
+    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
+            Government Challenges
+          </h1>
+          <p className="text-muted-foreground font-medium text-lg">
+            Solve critical public problems and secure pilot procurement.
+          </p>
         </div>
-        <Button onClick={() => toast.info("Challenge Creation portal opening soon.")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Publish Challenge
-        </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 bg-background/50 p-4 rounded-xl border border-muted">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Search by title or department..." 
-            className="pl-9"
+            placeholder="Search by title, department, or keyword..." 
+            className="pl-10 h-12 text-md rounded-lg bg-background"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={filter} onValueChange={(v) => setFilter(v || "all")}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Industry Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Industries</SelectItem>
-            <SelectItem value="Agriculture">Agriculture</SelectItem>
-            <SelectItem value="Smart City">Smart City</SelectItem>
-            <SelectItem value="Healthcare">Healthcare</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      <div className="grid gap-6">
-        {filteredChallenges.length === 0 ? (
-          <div className="text-center p-12 border border-dashed rounded-lg text-muted-foreground">
-            No challenges found matching your filters.
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {isLoading ? (
+          <div className="col-span-full py-12 flex justify-center text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin" />
           </div>
-        ) : (
-          filteredChallenges.map((challenge) => (
-            <Card key={challenge.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl mb-1">{challenge.title}</CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <Building2 className="w-4 h-4" /> {challenge.department}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary">{challenge.budget}</Badge>
+        ) : filteredChallenges.length === 0 ? (
+          <div className="col-span-full text-center p-12 border border-dashed rounded-xl text-muted-foreground">
+            No challenges found matching your criteria.
+          </div>
+        ) : filteredChallenges.map((challenge) => (
+          <Card key={challenge.id} className="flex flex-col hover:shadow-md transition-shadow bg-background/60">
+            <CardHeader className="pb-4">
+              <div className="flex justify-between items-start mb-2">
+                <Badge className={challenge.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100' : 'bg-muted text-muted-foreground'}>
+                  {challenge.status}
+                </Badge>
+                <span className="text-lg font-bold text-indigo-600">{challenge.budget}</span>
+              </div>
+              <CardTitle className="line-clamp-2 text-xl">{challenge.title}</CardTitle>
+              <CardDescription className="flex items-center gap-1.5 mt-2 font-medium text-foreground/80">
+                <Building2 className="w-4 h-4 text-muted-foreground" />
+                {challenge.department}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 space-y-4">
+              <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                {challenge.description}
+              </p>
+              
+              <div className="space-y-2 pt-2 text-sm font-medium">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="w-4 h-4" />
+                  {challenge.location || "India"}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {challenge.description}
-                </p>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Deadline: {challenge.deadline}</div>
-                  <div className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {challenge.location}</div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="w-4 h-4" />
+                  Deadline: {new Date(challenge.deadline).toLocaleDateString()}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {challenge.tags.map(tag => (
-                    <Badge key={tag} variant="outline">{tag}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t bg-muted/20 p-4">
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => toast.success("Saved to bookmarks")}>
-                    <Bookmark className="w-4 h-4 mr-2" /> Save
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    toast.success("Link copied!");
-                  }}>
-                    <Share2 className="w-4 h-4 mr-2" /> Share
-                  </Button>
-                </div>
-                
-                <Dialog>
-                  <DialogTrigger render={<Button>Apply Now</Button>} />
-                  <DialogContent className="sm:max-w-[525px]">
-                    <DialogHeader>
-                      <DialogTitle>Apply for Challenge</DialogTitle>
-                      <DialogDescription>
-                        {challenge.title} • {challenge.department}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                      <p className="text-sm text-muted-foreground">{challenge.description}</p>
-                      <div className="space-y-2 border-t pt-4">
-                        <h4 className="font-medium text-sm">Quick Actions</h4>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="w-full" onClick={() => toast.info("Requirements downloaded.")}>
-                            Download Requirements
-                          </Button>
-                          <Button variant="outline" size="sm" className="w-full" onClick={() => toast.info("Chat opened with department.")}>
-                            <HelpCircle className="w-4 h-4 mr-2" /> Ask Question
-                          </Button>
-                        </div>
-                      </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Badge variant="outline" className="bg-background">{challenge.category}</Badge>
+              </div>
+            </CardContent>
+            <CardFooter className="pt-4 border-t border-muted/50">
+              <Dialog open={isApplyingId === challenge.id} onOpenChange={(open) => !open && setIsApplyingId(null)}>
+                <DialogTrigger render={<Button className="w-full font-semibold" variant={challenge.status === 'OPEN' ? 'default' : 'secondary'} disabled={challenge.status !== 'OPEN'} onClick={() => setIsApplyingId(challenge.id)} />}>
+                    {challenge.status === 'OPEN' ? 'Apply Now' : 'Closed'}
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Apply for Challenge</DialogTitle>
+                    <DialogDescription>
+                      Submit your innovation for {challenge.title}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Pitch / Alignment</label>
+                      <Textarea 
+                        placeholder="Explain how your innovation solves this specific challenge..."
+                        value={pitch}
+                        onChange={(e) => setPitch(e.target.value)}
+                        className="min-h-[150px]"
+                      />
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline">Cancel</Button>
-                      <Button 
-                        onClick={() => handleApply(challenge.id)}
-                        disabled={isApplying === challenge.id}
-                      >
-                        {isApplying === challenge.id ? "Submitting..." : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" /> Submit Proposal
-                          </>
-                        )}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </CardFooter>
-            </Card>
-          ))
-        )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsApplyingId(null)}>Cancel</Button>
+                    <Button onClick={() => handleApply(challenge.id)} className="bg-indigo-600">
+                      <Send className="w-4 h-4 mr-2" /> Submit Application
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardFooter>
+          </Card>
+        ))}
       </div>
     </div>
   );
