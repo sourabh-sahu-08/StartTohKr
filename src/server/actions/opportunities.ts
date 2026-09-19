@@ -19,7 +19,7 @@ export async function getOpportunities() {
     },
     include: {
       requester: { select: { name: true, image: true, role: true } },
-      innovation: { select: { title: true, startup: { select: { name: true, ownerId: true } } } }
+      innovation: { select: { title: true, startup: { select: { name: true, id: true } } } }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -41,7 +41,7 @@ export async function updateOpportunityStatus(id: string, status: OpportunitySta
       type: "OPPORTUNITY",
       title: `Opportunity ${status}`,
       body: `Your opportunity request was ${status.toLowerCase()}`,
-      link: '/opportunities',
+      relatedEntity: '/opportunities',
       read: false
     }
   });
