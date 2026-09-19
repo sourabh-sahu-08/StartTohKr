@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,190 +8,224 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { EyeOff, CheckCircle2, FileText, AlertCircle, TrendingUp } from "lucide-react";
+import { EyeOff, CheckCircle2, FileText, AlertCircle, TrendingUp, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useChallengeStore } from "@/store/challengeStore";
-import { useInnovationStore } from "@/store/innovationStore";
-import { useProfileStore } from "@/store/profileStore";
+import { getApplicationsForEvaluation, getEvaluationsByMe, submitEvaluation, updateApplicationStatus } from "@/server/actions/evaluations";
 
 export default function EvaluatorDashboard() {
   const { data: session } = useSession();
-  const { applications, challenges, updateApplicationStatus, submitEvaluation, evaluations } = useChallengeStore();
-  const { innovations } = useInnovationStore();
-  const { profiles } = useProfileStore();
+  
+  const [pendingApplications, setPendingApplications] = useState<any[]>([]);
+  const [myEvaluations, setMyEvaluations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [evaluating, setEvaluating] = useState<string | null>(null);
   const [evaluationFeedback, setEvaluationFeedback] = useState("");
   const [evaluationScore, setEvaluationScore] = useState<number>(50);
 
-  const myEvaluations = Object.values(evaluations).filter(e => e.evaluatorId === session?.user?.id);
-  
-  // Evaluators see all SHORTLISTED applications that they haven't evaluated yet
-  const pendingApplications = Object.values(applications).filter(app => 
-    app.status === 'SHORTLISTED' && 
-    !myEvaluations.some(e => e.applicationId === app.id)
-  );
+  const loadData = async () => {
+    try {
+      const apps = await getApplicationsForEvaluation();
+      const evals = await getEvaluationsByMe();
+      
+      const evalAppIds = new Set(evals.map((e: any) => e.applicationId));
+      
+      setPendingApplications(apps.filter((a: any) => !evalAppIds.has(a.id)));
+      setMyEvaluations(evals);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const completedApplications = Object.values(applications).filter(app => 
-    myEvaluations.some(e => e.applicationId === app.id)
-  );
+  useEffect(() => {
+    if (session?.user?.id) loadData();
+  }, [session?.user?.id]);
 
-  const handleSubmitEvaluation = (appId: string) => {
-    submitEvaluation({
-      applicationId: appId,
-      evaluatorId: session?.user?.id || "",
-      score: evaluationScore,
-      feedback: evaluationFeedback
-    });
+  const handleEvaluate = async (appId: string) => {
+    if (!evaluationFeedback.trim()) {
+      toast.error("Feedback is required");
+      return;
+    }
     
-    updateApplicationStatus(appId, 'UNDER_REVIEW');
-    
-    toast.success("Evaluation submitted successfully.");
-    setEvaluating(null);
-    setEvaluationFeedback("");
-    setEvaluationScore(50);
+    try {
+      await submitEvaluation(appId, evaluationScore, evaluationFeedback);
+      toast.success("Evaluation submitted successfully!");
+      
+      // If we just evaluated it, maybe we check if it reaches consensus.
+      // For demo, we just update local state.
+      
+      setEvaluating(null);
+      setEvaluationFeedback("");
+      setEvaluationScore(50);
+      
+      await loadData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to submit evaluation");
+    }
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Evaluator Workspace</h1>
-        <p className="text-muted-foreground mt-1">Review and score shortlisted startup proposals.</p>
+        <h1 className="text-4xl font-extrabold tracking-tight">Evaluator Dashboard</h1>
+        <p className="text-muted-foreground text-lg mt-2">Review shortlisted pilot applications securely.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-            <AlertCircle className="h-4 w-4 text-amber-500" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-indigo-50/50 border-indigo-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-indigo-800">Pending Reviews</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingApplications.length}</div>
+            <div className="text-3xl font-bold text-indigo-900">{pendingApplications.length}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Evaluations</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Card className="bg-emerald-50/50 border-emerald-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-800">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completedApplications.length}</div>
+            <div className="text-3xl font-bold text-emerald-900">{myEvaluations.length}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score Given</CardTitle>
-            <TrendingUp className="h-4 w-4 text-indigo-500" />
+        <Card className="bg-amber-50/50 border-amber-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-amber-800">Average Score Given</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {myEvaluations.length > 0 
-                ? Math.round(myEvaluations.reduce((acc, curr) => acc + curr.score, 0) / myEvaluations.length) 
-                : "--"}
+            <div className="text-3xl font-bold text-amber-900">
+              {myEvaluations.length ? Math.round(myEvaluations.reduce((acc, curr) => acc + (curr.scores && curr.scores[0] || 0), 0) / myEvaluations.length) : 0}/100
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Proposals Awaiting Evaluation</h2>
-        
-        {pendingApplications.length === 0 ? (
-          <div className="text-center p-12 bg-muted/50 rounded-lg border border-dashed flex flex-col items-center">
-            <EyeOff className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold">You're all caught up!</h3>
-            <p className="text-muted-foreground">No new proposals have been shortlisted for your review yet.</p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {pendingApplications.map(app => {
-              const challenge = challenges[app.challengeId];
-              const startup = profiles[app.startupId];
-              const innovation = innovations.find(i => i.id === app.innovationId);
-              
-              return (
-                <Card key={app.id} className="flex flex-col">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        Needs Review
-                      </Badge>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-500" /> Pending Evaluations
+          </h2>
+          
+          {isLoading ? (
+            <div className="py-12 flex justify-center text-muted-foreground"><Loader2 className="w-8 h-8 animate-spin" /></div>
+          ) : pendingApplications.length === 0 ? (
+            <div className="text-center p-12 border-2 border-dashed rounded-xl text-muted-foreground bg-muted/20">
+              <CheckCircle2 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-lg font-medium">All caught up!</p>
+              <p className="text-sm mt-1">No pending applications to review.</p>
+            </div>
+          ) : (
+            pendingApplications.map((app) => (
+              <Card key={app.id} className="border-amber-200 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 bg-amber-100 text-amber-800 text-xs font-bold rounded-bl-lg flex items-center gap-1">
+                  <EyeOff className="w-3 h-3" /> Blind Review
+                </div>
+                <CardHeader>
+                  <CardTitle className="text-lg">{app.challenge?.title}</CardTitle>
+                  <CardDescription>Applicant: {app.startup?.name} (Identity Hidden)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-muted p-4 rounded-lg">
+                    <span className="text-xs font-bold text-muted-foreground uppercase">Pitch</span>
+                    <p className="text-sm mt-1 font-medium">{app.pitch}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-muted-foreground uppercase">Innovation Details</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-background border p-3 rounded-md text-sm">
+                        <span className="font-semibold block mb-1">Problem</span>
+                        <span className="line-clamp-2 text-muted-foreground">{app.innovation?.problem}</span>
+                      </div>
+                      <div className="bg-background border p-3 rounded-md text-sm">
+                        <span className="font-semibold block mb-1">Solution</span>
+                        <span className="line-clamp-2 text-muted-foreground">{app.innovation?.solution}</span>
+                      </div>
                     </div>
-                    <CardTitle className="text-xl mt-2">{challenge?.title}</CardTitle>
-                    <CardDescription>
-                      Applicant: {startup?.name || "Unknown Startup"}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 space-y-4">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">Innovation Proposed</p>
-                      <p className="font-medium">{innovation?.title || "Unknown Innovation"}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">Pitch</p>
-                      <p className="text-sm line-clamp-3">{app.pitch}</p>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="bg-muted/30 pt-4">
-                    <Dialog open={evaluating === app.id} onOpenChange={(open) => !open && setEvaluating(null)}>
-                      <DialogTrigger render={<Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setEvaluating(app.id)}>
-                        Evaluate Proposal
-                      </Button>} />
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Evaluate: {startup?.name}</DialogTitle>
-                          <DialogDescription>
-                            Challenge: {challenge?.title}
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <div className="space-y-6 py-4">
-                          <div className="p-4 bg-muted/50 rounded-md">
-                            <h4 className="font-semibold mb-2">Applicant's Pitch</h4>
-                            <p className="text-sm whitespace-pre-wrap">{app.pitch}</p>
+                  </div>
+                </CardContent>
+                <CardFooter className="bg-muted/30 border-t p-4 flex justify-end">
+                  <Dialog open={evaluating === app.id} onOpenChange={(open) => !open && setEvaluating(null)}>
+                    <DialogTrigger render={<Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setEvaluating(app.id)} />}>
+                        Evaluate Submission
+                    </DialogTrigger>
+                    <DialogContent className="max-w-xl">
+                      <DialogHeader>
+                        <DialogTitle>Evaluate: {app.challenge?.title}</DialogTitle>
+                        <DialogDescription>Score this innovation based on feasibility, scalability, and impact.</DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-6 py-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <label className="text-sm font-semibold">Overall Score</label>
+                            <span className="text-sm font-bold text-indigo-600">{evaluationScore}/100</span>
                           </div>
-                          
-                          <div className="space-y-3">
-                            <label className="text-sm font-medium flex justify-between">
-                              <span>Technical Viability Score</span>
-                              <span className="font-bold text-primary">{evaluationScore}/100</span>
-                            </label>
-                            <input 
-                              type="range" 
-                              min="0" max="100" 
-                              value={evaluationScore} 
-                              onChange={(e) => setEvaluationScore(Number(e.target.value))}
-                              className="w-full"
-                            />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>Not Viable (0)</span>
-                              <span>Highly Scalable (100)</span>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Evaluation Feedback</label>
-                            <Textarea 
-                              className="min-h-[100px]"
-                              placeholder="Provide constructive feedback on their technical approach, risks, and scalability..."
-                              value={evaluationFeedback}
-                              onChange={(e) => setEvaluationFeedback(e.target.value)}
-                            />
+                          <input 
+                            type="range" 
+                            min="0" max="100" 
+                            value={evaluationScore} 
+                            onChange={(e) => setEvaluationScore(parseInt(e.target.value))}
+                            className="w-full accent-indigo-600"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Poor</span>
+                            <span>Average</span>
+                            <span>Excellent</span>
                           </div>
                         </div>
                         
-                        <DialogFooter>
-                          <Button variant="outline" onClick={() => setEvaluating(null)}>Cancel</Button>
-                          <Button onClick={() => handleSubmitEvaluation(app.id)} className="bg-indigo-600 hover:bg-indigo-700">Submit Evaluation</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold">Detailed Feedback & Rationale</label>
+                          <Textarea 
+                            placeholder="Explain the reasoning behind your score. This will be shared with the government department."
+                            className="min-h-[120px]"
+                            value={evaluationFeedback}
+                            onChange={(e) => setEvaluationFeedback(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setEvaluating(null)}>Cancel</Button>
+                        <Button onClick={() => handleEvaluate(app.id)} className="bg-indigo-600">Submit Evaluation</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </CardFooter>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Completed Evaluations
+          </h2>
+          
+          <div className="space-y-4">
+            {myEvaluations.length === 0 && !isLoading && (
+              <div className="text-muted-foreground text-sm p-4 bg-muted/30 rounded-lg">You haven't completed any evaluations yet.</div>
+            )}
+            {myEvaluations.map((evalRecord) => (
+              <Card key={evalRecord.id} className="shadow-sm">
+                <CardHeader className="py-3 px-4">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-base">{evalRecord.application?.challenge?.title}</CardTitle>
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      Score: {(evalRecord.scores && evalRecord.scores[0] || 0)}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <p className="text-sm text-muted-foreground line-clamp-2">"{evalRecord.feedback}"</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, createSystemNotification } from '@/server/actions/notifications';
 
 export interface EcosystemNotification {
   id: string;
-  userId: string; // The receiver
+  userId: string;
   title: string;
   message: string;
   link: string;
@@ -13,43 +13,61 @@ export interface EcosystemNotification {
 
 interface NotificationState {
   notifications: EcosystemNotification[];
-  addNotification: (notification: Omit<EcosystemNotification, 'id' | 'read' | 'createdAt'>) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: (userId: string) => void;
-  getUnreadCount: (userId: string) => number;
+  isLoading: boolean;
+  
+  fetchNotifications: () => Promise<void>;
+  addNotification: (notification: Omit<EcosystemNotification, 'id' | 'read' | 'createdAt'>) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  getUnreadCount: () => number;
 }
 
 export const useNotificationStore = create<NotificationState>()(
-  persist(
-    (set, get) => ({
-      notifications: [],
-      
-      addNotification: (notif) => set((state) => ({
-        notifications: [
-          {
-            ...notif,
-            id: `notif-${Date.now()}`,
-            read: false,
-            createdAt: new Date()
-          },
-          ...state.notifications
-        ]
-      })),
-      
-      markAsRead: (id) => set((state) => ({
-        notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n)
-      })),
-      
-      markAllAsRead: (userId) => set((state) => ({
-        notifications: state.notifications.map(n => n.userId === userId ? { ...n, read: true } : n)
-      })),
-      
-      getUnreadCount: (userId) => {
-        return get().notifications.filter(n => n.userId === userId && !n.read).length;
+  (set, get) => ({
+    notifications: [],
+    isLoading: false,
+    
+    fetchNotifications: async () => {
+      set({ isLoading: true });
+      try {
+        const data = await getNotifications();
+        set({ notifications: data as any[] });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set({ isLoading: false });
       }
-    }),
-    {
-      name: 'starttohkr-notifications',
+    },
+    
+    addNotification: async (notif) => {
+      try {
+        await createSystemNotification(notif.userId, notif.title, notif.message, notif.link);
+        await get().fetchNotifications();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    
+    markAsRead: async (id) => {
+      try {
+        await markNotificationAsRead(id);
+        await get().fetchNotifications();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    
+    markAllAsRead: async () => {
+      try {
+        await markAllNotificationsAsRead();
+        await get().fetchNotifications();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    
+    getUnreadCount: () => {
+      return get().notifications.filter(n => !n.read).length;
     }
-  )
+  })
 );

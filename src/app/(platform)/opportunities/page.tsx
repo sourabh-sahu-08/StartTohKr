@@ -1,79 +1,89 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useOpportunityStore } from "@/store/opportunityStore";
-import { useNotificationStore } from "@/store/notificationStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, MessageSquare, CheckCircle2, XCircle, Clock, ExternalLink } from "lucide-react";
+import { Building2, MessageSquare, CheckCircle2, XCircle, Clock, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { OpportunityStatus } from "@prisma/client";
+import { getOpportunities, updateOpportunityStatus } from "@/server/actions/opportunities";
 
 export default function OpportunitiesPage() {
   const { data: session } = useSession();
-  const currentUserId = session?.user?.id || "usr-startup-1"; 
+  const currentUserId = session?.user?.id; 
   
-  const { opportunities, updateStatus } = useOpportunityStore();
-  const { addNotification } = useNotificationStore();
+  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleStatusUpdate = (oppId: string, status: OpportunityStatus, requesterId: string) => {
-    updateStatus(oppId, status);
-    
-    if (status === 'ACCEPTED') {
-      addNotification({
-        userId: requesterId,
-        title: "Opportunity Accepted!",
-        message: "Your opportunity request has been accepted. You can now collaborate.",
-        link: "/messages"
-      });
-      toast.success("Opportunity accepted! A new conversation has been started in Messages.");
-    } else {
-      toast.info("Opportunity declined.");
+  const loadData = async () => {
+    try {
+      const data = await getOpportunities();
+      setOpportunities(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const received = opportunities.filter(o => o.innovation?.startupId === currentUserId);
-  const sent = opportunities.filter(o => o.requesterId === currentUserId);
+  useEffect(() => {
+    loadData();
+  }, [currentUserId]);
+
+  const handleStatusUpdate = async (oppId: string, status: OpportunityStatus) => {
+    try {
+      await updateOpportunityStatus(oppId, status);
+      toast.success(`Opportunity ${status.toLowerCase()}`);
+      await loadData();
+    } catch (e) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const myRequests = opportunities.filter(o => o.requesterId === currentUserId);
+  const receivedRequests = opportunities.filter(o => o.innovation?.startup?.ownerId === currentUserId);
 
   const renderOppCard = (opp: any, isReceived: boolean) => (
-    <Card key={opp.id} className="overflow-hidden border-primary/10 transition-all hover:shadow-md">
+    <Card key={opp.id} className="overflow-hidden bg-background hover:shadow-md transition-all">
       <CardHeader className="bg-muted/30 pb-4 border-b">
         <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 border">
-              <AvatarImage src={isReceived ? opp.requester.image : opp.innovation?.startup?.image} />
-              <AvatarFallback>{isReceived ? opp.requester.name?.substring(0,2) : opp.innovation?.title?.substring(0,2)}</AvatarFallback>
+          <div className="flex gap-4">
+            <Avatar className="w-12 h-12 border">
+              <AvatarImage src={isReceived ? opp.requester?.image : opp.innovation?.startup?.image} />
+              <AvatarFallback>{isReceived ? opp.requester?.name?.charAt(0) : opp.innovation?.startup?.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-bold">{isReceived ? opp.requester.name : opp.innovation?.title}</h3>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Building2 className="w-3 h-3" /> {isReceived ? opp.requester.role : "Innovation"}
-              </p>
+              <CardTitle className="text-lg">{isReceived ? opp.requester?.name : opp.innovation?.startup?.name}</CardTitle>
+              <CardDescription className="flex items-center gap-1 mt-1 font-medium">
+                <Building2 className="w-3.5 h-3.5" /> 
+                {opp.type.replace('_', ' ')}
+              </CardDescription>
             </div>
           </div>
-          <Badge variant={
-            opp.status === 'ACCEPTED' ? 'default' : 
-            opp.status === 'PENDING' ? 'outline' : 'secondary'
-          } className={opp.status === 'ACCEPTED' ? 'bg-emerald-500' : ''}>
+          <Badge className={
+            opp.status === 'PENDING' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+            opp.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+            'bg-rose-100 text-rose-800 border-rose-200'
+          }>
             {opp.status}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-4 space-y-4">
+      <CardContent className="p-5 space-y-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Opportunity Type</span>
-          <p className="font-semibold text-primary">{opp.type.replace('_', ' ')}</p>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Regarding Innovation</span>
+          <p className="font-semibold">{opp.innovation?.title}</p>
         </div>
         
-        <div className="bg-muted/50 p-3 rounded-lg text-sm border border-dashed">
-          <p className="italic text-muted-foreground">&quot;{opp.message}&quot;</p>
+        <div className="bg-muted/50 p-3 rounded-lg text-sm italic border-l-4 border-l-primary/30">
+          "{opp.message}"
         </div>
-        
+
         <div className="flex items-center justify-between pt-2">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Clock className="w-3 h-3" /> {new Date(opp.createdAt).toLocaleDateString()}
@@ -82,19 +92,21 @@ export default function OpportunitiesPage() {
           <div className="flex gap-2">
             {isReceived && opp.status === 'PENDING' && (
               <>
-                <Button variant="outline" size="sm" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => handleStatusUpdate(opp.id, 'DECLINED', opp.requesterId)}>
-                  <XCircle className="w-4 h-4 mr-1" /> Decline
+                <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200" onClick={() => handleStatusUpdate(opp.id, 'DECLINED')}>
+                  <XCircle className="w-4 h-4 mr-1.5" /> Decline
                 </Button>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleStatusUpdate(opp.id, 'ACCEPTED', opp.requesterId)}>
-                  <CheckCircle2 className="w-4 h-4 mr-1" /> Accept
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleStatusUpdate(opp.id, 'ACCEPTED')}>
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" /> Accept & Connect
                 </Button>
               </>
             )}
             
-            {opp.status === 'ACCEPTED' && (
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" nativeButton={false} render={
-                <Link href="/messages"><MessageSquare className="w-4 h-4 mr-1" /> Open Conversation</Link>
-              } />
+            {(opp.status === 'ACCEPTED' || opp.status === 'COMPLETED') && (
+              <Button render={<Link href="/messages" />} size="sm" className="bg-indigo-600 hover:bg-indigo-700"><MessageSquare className="w-4 h-4 mr-1.5" /> Message</Button>
+            )}
+            
+            {!isReceived && opp.status === 'PENDING' && (
+              <Button size="sm" variant="outline" disabled>Awaiting Response</Button>
             )}
           </div>
         </div>
@@ -103,41 +115,47 @@ export default function OpportunitiesPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Opportunity Inbox</h1>
-        <p className="text-muted-foreground">Manage your incoming and outgoing collaboration requests.</p>
+    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+      <div>
+        <h1 className="text-4xl font-extrabold tracking-tight">Opportunities</h1>
+        <p className="text-muted-foreground text-lg mt-2">Manage pilot requests, investments, and collaborations.</p>
       </div>
 
       <Tabs defaultValue="received" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="received">Received ({received.length})</TabsTrigger>
-          <TabsTrigger value="sent">Sent ({sent.length})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsTrigger value="received">Received Requests ({receivedRequests.length})</TabsTrigger>
+          <TabsTrigger value="sent">My Requests ({myRequests.length})</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="received" className="mt-6 space-y-4">
-          {received.length === 0 ? (
-            <div className="text-center p-12 border-2 border-dashed rounded-xl text-muted-foreground">
-              No received opportunities yet.
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {received.map(o => renderOppCard(o, true))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="sent" className="mt-6 space-y-4">
-          {sent.length === 0 ? (
-            <div className="text-center p-12 border-2 border-dashed rounded-xl text-muted-foreground">
-              You haven&apos;t sent any opportunity requests yet.
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              {sent.map(o => renderOppCard(o, false))}
-            </div>
-          )}
-        </TabsContent>
+        {isLoading ? (
+          <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <>
+            <TabsContent value="received" className="mt-6 space-y-4">
+              {receivedRequests.length === 0 ? (
+                <div className="text-center p-12 border-2 border-dashed rounded-xl text-muted-foreground">
+                  No incoming opportunity requests yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {receivedRequests.map(opp => renderOppCard(opp, true))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sent" className="mt-6 space-y-4">
+              {myRequests.length === 0 ? (
+                <div className="text-center p-12 border-2 border-dashed rounded-xl text-muted-foreground">
+                  You haven't sent any opportunity requests.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {myRequests.map(opp => renderOppCard(opp, false))}
+                </div>
+              )}
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );
