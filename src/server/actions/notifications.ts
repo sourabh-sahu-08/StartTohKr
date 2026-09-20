@@ -40,9 +40,10 @@ export async function createSystemNotification(recipientId: string, title: strin
   return prisma.notification.create({
     data: {
       recipientId,
+      type: "SYSTEM",
       title,
-      message,
-      relatedEntity: link,
+      body,
+      relatedEntity,
       read: false
     }
   });
