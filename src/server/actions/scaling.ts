@@ -5,16 +5,16 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export async function getScalingHubInnovations() {
-  // Innovations that have a completed pilot or are "PROVEN" stage
+  // Innovations that have a completed pilot or are "SCALING" stage
   return prisma.innovation.findMany({
     where: {
       OR: [
-        { stage: "PROVEN" },
+        { stage: "SCALING" },
         { pilots: { some: { status: "COMPLETED" } } }
       ]
     },
     include: {
-      startup: { select: { name: true, logo: true, industry: true } },
+      startup: { select: { name: true, image: true } },
       pilots: {
         where: { status: "COMPLETED" },
         select: { governmentDept: true }

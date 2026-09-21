@@ -13,13 +13,13 @@ export async function getMentorshipCandidates() {
   return prisma.innovation.findMany({
     where: {
       OR: [
-        { stage: "IDEA_STAGE" },
+        { stage: "IDEA" },
         { stage: "PROTOTYPE" },
-        { stage: "EARLY_TRACTION" }
+        { stage: "MVP" }
       ]
     },
     include: {
-      startup: { select: { name: true, industry: true } }
+      startup: { select: { name: true, image: true } }
     },
     orderBy: { createdAt: 'desc' },
     take: 12

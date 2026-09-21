@@ -30,7 +30,8 @@ export default function ComparePage() {
 
   const selectedInnovations = selectedIds.map(id => innovations.find(i => i.id === id)).filter(Boolean);
 
-  const addInnovation = (id: string) => {
+  const addInnovation = (id: string | null) => {
+    if (!id) return;
     if (selectedIds.length < 3 && !selectedIds.includes(id)) {
       setSelectedIds([...selectedIds, id]);
     }
@@ -127,8 +128,7 @@ export default function ComparePage() {
                     }>{inv.stage}</Badge>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Est. Budget</p>
-                    <p className="text-sm font-medium">{inv.budget}</p>
+                    
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Est. Timeline</p>
@@ -138,7 +138,7 @@ export default function ComparePage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Momentum</p>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-500" style={{ width: \`\${inv.momentumScore}%\` }} />
+                        <div className="h-full bg-indigo-500" style={{ width: `${inv.momentumScore}%` }} />
                       </div>
                       <span className="text-sm font-bold">{inv.momentumScore}</span>
                     </div>
@@ -146,9 +146,7 @@ export default function ComparePage() {
                 </div>
 
                 <div className="pt-4 border-t">
-                  <Button className="w-full" variant="outline" asChild>
-                    <Link href={`/innovation/${inv.id}`}>View Full Profile</Link>
-                  </Button>
+                  <Button className="w-full" variant="outline" render={<Link href={`/innovation/${inv.id}`} />}>View Full Profile</Button>
                 </div>
               </CardContent>
             </Card>

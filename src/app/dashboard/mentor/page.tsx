@@ -33,7 +33,7 @@ export default function MentorDashboard() {
   const handleOfferMentorship = async (invId: string) => {
     try {
       setRequestingId(invId);
-      await sendOpportunity(invId, "MENTORSHIP", "I would love to offer my mentorship to help guide your startup.");
+      await sendOpportunity({ innovationId: invId, type: "MENTORSHIP", message: "I would love to offer my mentorship to help guide your startup." });
       toast.success("Mentorship offer sent successfully!");
       
       const updatedMentorships = await getMyMentorships();
@@ -79,11 +79,7 @@ export default function MentorDashboard() {
                     </div>
                   </CardContent>
                   <CardFooter className="gap-2 border-t bg-muted/10 p-4">
-                    <Button variant="outline" className="flex-1 bg-white" asChild>
-                      <Link href={`/innovation/${inv.id}`}>
-                        View Detail
-                      </Link>
-                    </Button>
+                    <Button variant="outline" className="flex-1 bg-white" render={<Link href={`/innovation/${inv.id}`} />}>View Detail</Button>
                     <Button 
                       className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" 
                       onClick={() => handleOfferMentorship(inv.id)}
@@ -122,9 +118,7 @@ export default function MentorDashboard() {
                     <CardFooter className="bg-muted/30 border-t p-4 flex justify-between">
                       <span className="text-xs text-muted-foreground">Requested on {new Date(invReq.createdAt).toLocaleDateString()}</span>
                       {invReq.status === 'ACCEPTED' && (
-                        <Button size="sm" asChild>
-                          <Link href="/messages"><Handshake className="w-4 h-4 mr-2" /> Message Mentee</Link>
-                        </Button>
+                        <Button size="sm" render={<Link href="/messages" />}><Handshake className="w-4 h-4 mr-2" /> Message Mentee</Button>
                       )}
                     </CardFooter>
                   </Card>
