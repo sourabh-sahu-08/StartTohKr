@@ -5,15 +5,18 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, TrendingUp, Handshake, ExternalLink, Loader2 } from "lucide-react";
+import { GraduationCap, Handshake, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getMentorshipCandidates, getMyMentorships } from "@/server/actions/mentors";
 import { sendOpportunity } from "@/server/actions/interactions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+type MentorshipCandidate = Awaited<ReturnType<typeof getMentorshipCandidates>>[0];
+type MentorshipRequest = Awaited<ReturnType<typeof getMyMentorships>>[0];
+
 export default function MentorDashboard() {
-  const [innovations, setInnovations] = useState<any[]>([]);
-  const [myMentorships, setMyMentorships] = useState<any[]>([]);
+  const [innovations, setInnovations] = useState<MentorshipCandidate[]>([]);
+  const [myMentorships, setMyMentorships] = useState<MentorshipRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [requestingId, setRequestingId] = useState<string | null>(null);
 
@@ -38,8 +41,8 @@ export default function MentorDashboard() {
       
       const updatedMentorships = await getMyMentorships();
       setMyMentorships(updatedMentorships);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to send mentorship offer");
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Failed to send mentorship offer");
     } finally {
       setRequestingId(null);
     }
@@ -97,7 +100,7 @@ export default function MentorDashboard() {
           <TabsContent value="portfolio" className="space-y-6">
             {myMentorships.length === 0 ? (
               <div className="text-center p-16 border-2 border-dashed rounded-xl bg-muted/20 text-muted-foreground">
-                You haven't initiated any mentorship conversations yet.
+                You haven&apos;t initiated any mentorship conversations yet.
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
