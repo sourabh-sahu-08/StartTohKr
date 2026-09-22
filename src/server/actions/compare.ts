@@ -13,7 +13,7 @@ export async function getAllInnovationsCompact() {
       category: true,
       stage: true,
       
-      timeline: true,
+      
       momentumScore: true,
       startup: { select: { name: true } }
     },
