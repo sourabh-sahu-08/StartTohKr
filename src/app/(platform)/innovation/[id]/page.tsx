@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { OpportunityType } from "@prisma/client";
-import { getInnovationDetails, getSimilarInnovations } from "@/server/actions/innovation";
+import { innovationApi } from "@/lib/api/innovation.api";
 import { toggleTrack, toggleSave, sendOpportunity } from "@/server/actions/interactions";
 import { addComment } from "@/server/actions/comments"; // We need to create this!
 
@@ -34,10 +34,10 @@ export default function InnovationStoryPage({ params }: { params: Promise<{ id: 
 
   const loadData = async () => {
     try {
-      const data = await getInnovationDetails(id);
+      const data = await innovationApi.getById(id);
       setInnovation(data);
       if (data) {
-        const similar = await getSimilarInnovations(data.category, data.id);
+        const similar = await innovationApi.getSimilar(data.category, data.id);
         setSimilarInnovations(similar);
       }
     } catch (e) {
