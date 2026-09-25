@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Search, Send, Phone, Video, MoreVertical, Loader2 } from "lucide-react";
-import { getConversations, sendMessage } from "@/server/actions/messages";
+import { messageApi } from "@/lib/api/message.api";
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -17,9 +17,9 @@ export default function MessagesPage() {
 
   const loadData = async () => {
     try {
-      const data = await getConversations();
-      setConversations(data);
-      if (data.length > 0 && !activePartnerId) {
+      const data = await messageApi.getConversations();
+      setConversations(data ?? []);
+      if (data && data.length > 0 && !activePartnerId) {
         setActivePartnerId(data[0].partner.id);
       }
     } catch (e) {
@@ -41,7 +41,7 @@ export default function MessagesPage() {
   const handleSend = async () => {
     if (!message.trim() || !activePartnerId) return;
     try {
-      await sendMessage(activePartnerId, message);
+      await messageApi.sendMessage(activePartnerId, message);
       setMessage("");
       await loadData();
     } catch (e) {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, createSystemNotification } from '@/server/actions/notifications';
+import { notificationApi } from '@/lib/api/notification.api';
 
 export interface EcosystemNotification {
   id: string;
@@ -30,7 +30,7 @@ export const useNotificationStore = create<NotificationState>()(
     fetchNotifications: async () => {
       set({ isLoading: true });
       try {
-        const data = await getNotifications();
+        const data = await notificationApi.getAll();
         set({ notifications: data as any[] });
       } catch (err) {
         console.error(err);
@@ -41,7 +41,7 @@ export const useNotificationStore = create<NotificationState>()(
     
     addNotification: async (notif) => {
       try {
-        await createSystemNotification(notif.userId, notif.title, notif.message, notif.link);
+        await notificationApi.createSystem(notif.userId, notif.title, notif.message, notif.link);
         await get().fetchNotifications();
       } catch (e) {
         console.error(e);
@@ -50,7 +50,7 @@ export const useNotificationStore = create<NotificationState>()(
     
     markAsRead: async (id) => {
       try {
-        await markNotificationAsRead(id);
+        await notificationApi.markAsRead(id);
         await get().fetchNotifications();
       } catch (e) {
         console.error(e);
@@ -59,7 +59,7 @@ export const useNotificationStore = create<NotificationState>()(
     
     markAllAsRead: async () => {
       try {
-        await markAllNotificationsAsRead();
+        await notificationApi.markAllAsRead();
         await get().fetchNotifications();
       } catch (e) {
         console.error(e);
