@@ -8,7 +8,7 @@ import { Target, ExternalLink, Activity, BellRing, Settings, Loader2 } from "luc
 import Link from "next/link";
 import { toast } from "sonner";
 import { getTrackedItems } from "@/server/actions/collections";
-import { toggleTrack } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -34,7 +34,7 @@ export default function WatchlistPage() {
 
   const handleUntrack = async (id: string) => {
     try {
-      await toggleTrack(id);
+      await interactionApi.toggleTrack(id);
       toast.success("Removed from Watchlist");
       setTrackedList(prev => prev.filter(i => i.id !== id));
     } catch (e) {

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Briefcase, TrendingUp, Handshake, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getPromisingInnovations, getMyInvestments } from "@/server/actions/investors";
-import { sendOpportunity } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function InvestorDashboard() {
@@ -33,7 +33,7 @@ export default function InvestorDashboard() {
   const handleInvest = async (invId: string) => {
     try {
       setRequestingId(invId);
-      await sendOpportunity({ innovationId: invId, type: "INVESTMENT", message: "We are interested in discussing investment opportunities with your startup." });
+      await interactionApi.sendOpportunity({ innovationId: invId, type: "INVESTMENT", message: "We are interested in discussing investment opportunities with your startup." });
       toast.success("Investment interest sent successfully!");
       
       const updatedInvestments = await getMyInvestments();
