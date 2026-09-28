@@ -131,8 +131,7 @@ export default function ComparePage() {
                     
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Est. Timeline</p>
-                    <p className="text-sm font-medium">{inv.timeline}</p>
+                    
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Momentum</p>
