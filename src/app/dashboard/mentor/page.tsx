@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Handshake, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getMentorshipCandidates, getMyMentorships } from "@/server/actions/mentors";
+import { mentorApi } from "@/lib/api/mentor.api";
 import { interactionApi } from "@/lib/api/interaction.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type MentorshipCandidate = Awaited<ReturnType<typeof getMentorshipCandidates>>[0];
-type MentorshipRequest = Awaited<ReturnType<typeof getMyMentorships>>[0];
+type MentorshipCandidate = any;
+type MentorshipRequest = any;
 
 export default function MentorDashboard() {
   const [innovations, setInnovations] = useState<MentorshipCandidate[]>([]);
@@ -22,12 +22,12 @@ export default function MentorDashboard() {
 
   useEffect(() => {
     Promise.all([
-      getMentorshipCandidates(),
-      getMyMentorships()
+      mentorApi.getMentorshipCandidates(),
+      mentorApi.getMyMentorships()
     ])
       .then(([invs, mentorships]) => {
-        setInnovations(invs);
-        setMyMentorships(mentorships);
+        setInnovations(invs ?? []);
+        setMyMentorships(mentorships ?? []);
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
@@ -39,7 +39,7 @@ export default function MentorDashboard() {
       await interactionApi.sendOpportunity({ innovationId: invId, type: "MENTORSHIP", message: "I would love to offer my mentorship to help guide your startup." });
       toast.success("Mentorship offer sent successfully!");
       
-      const updatedMentorships = await getMyMentorships();
+      const updatedMentorships = await mentorApi.getMyMentorships() ?? [];
       setMyMentorships(updatedMentorships);
     } catch (e: unknown) {
       toast.error((e as Error).message || "Failed to send mentorship offer");

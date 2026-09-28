@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, TrendingUp, Handshake, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getPromisingInnovations, getMyInvestments } from "@/server/actions/investors";
+import { investorApi } from "@/lib/api/investor.api";
 import { interactionApi } from "@/lib/api/interaction.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -19,12 +19,12 @@ export default function InvestorDashboard() {
 
   useEffect(() => {
     Promise.all([
-      getPromisingInnovations(),
-      getMyInvestments()
+      investorApi.getPromisingInnovations(),
+      investorApi.getMyInvestments()
     ])
       .then(([invs, investments]) => {
-        setInnovations(invs);
-        setMyInvestments(investments);
+        setInnovations(invs ?? []);
+        setMyInvestments(investments ?? []);
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
@@ -36,7 +36,7 @@ export default function InvestorDashboard() {
       await interactionApi.sendOpportunity({ innovationId: invId, type: "INVESTMENT", message: "We are interested in discussing investment opportunities with your startup." });
       toast.success("Investment interest sent successfully!");
       
-      const updatedInvestments = await getMyInvestments();
+      const updatedInvestments = await investorApi.getMyInvestments() ?? [];
       setMyInvestments(updatedInvestments);
     } catch (e: any) {
       toast.error(e.message || "Failed to send investment request");
