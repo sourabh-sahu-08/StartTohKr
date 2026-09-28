@@ -25,28 +25,69 @@ model User {
   image         String?
   password      String?
   role          Role      @default(STARTUP)
+  bio           String?   @db.Text
+  location      String?
+  interests     String[]  @default([])
+  skills        String[]  @default([])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   profile             Profile?
+  startupProfile      Startup?
   innovations         Innovation[]
   posts               InnovationPost[]
   signals             InnovationSignal[]
   comments            InnovationComment[]
   trackedInnovations  InnovationTracker[]
   opportunityRequests InnovationOpportunity[] @relation("OpportunityRequester")
+
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
+
+  savedItems  SavedItem[]
+  collections Collection[]
+
+  evaluations Evaluation[]
+
+  messagesSent    Message[]
+  mentions        Mention[]
+  notifications   Notification[]
+  reportsFiled    Report[]       @relation("Reporter")
+  reportsReceived Report[]       @relation("ReportedUser")
 }
 
 model Profile {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio       String?
+  bio       String?  @db.Text
   location  String?
   website   String?
   industry  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Startup {
+  id           String   @id @default(cuid())
+  ownerId      String   @unique
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  logo         String?
+  description  String?  @db.Text
+  website      String?
+  industry     String?
+  location     String?
+  stage        String?
+  fundingStage String?
+  technologies String[] @default([])
+  verification String   @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+  pilots       Pilot[]
 }
 
 enum InnovationStage {
@@ -59,7 +100,7 @@ enum InnovationStage {
 
 model Innovation {
   id        String @id @default(cuid())
-  startupId String
+  startupId String // Still points to User id for backwards compatibility or can point to Startup
   startup   User   @relation(fields: [startupId], references: [id], onDelete: Cascade)
 
   title        String
@@ -82,6 +123,11 @@ model Innovation {
   trackers      InnovationTracker[]
   comments      InnovationComment[]
   opportunities InnovationOpportunity[]
+
+  applications  Application[]
+  pilots        Pilot[]
+  milestones    Milestone[]
+  impactReports ImpactReport[]
 }
 
 enum PostType {
@@ -133,7 +179,7 @@ model InnovationSignal {
 
   createdAt DateTime @default(now())
 
-  @@unique([userId, innovationId, postId]) // A user can only signal a specific entity once
+  @@unique([userId, innovationId, postId])
 }
 
 model InnovationTracker {
@@ -148,6 +194,47 @@ model InnovationTracker {
   @@unique([userId, innovationId])
 }
 
+model Follow {
+  id         String @id @default(cuid())
+  followerId String
+  follower   User   @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+
+  followingId String
+  following   User   @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Collection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+
+  savedItems SavedItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SavedItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  collectionId String?
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  entityType String // INNOVATION, POST, CHALLENGE
+  entityId   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, entityType, entityId])
+}
+
 enum OpportunityStatus {
   PENDING
   ACCEPTED
@@ -158,10 +245,11 @@ enum OpportunityStatus {
 enum OpportunityType {
   INVESTMENT
   GOVERNMENT_PILOT
-  COLLABORATION
   MENTORSHIP
-  INDUSTRY_PARTNER
+  INDUSTRY_PARTNERSHIP
+  TECHNICAL_COLLABORATION
   PROCUREMENT
+  RESEARCH
 }
 
 model InnovationOpportunity {
@@ -208,4 +296,226 @@ model InnovationComment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Phase 5-8: Challenges, Applications, Pilots, Procurement
+
+model Challenge {
+  id                 String   @id @default(cuid())
+  department         String
+  title              String
+  description        String   @db.Text
+  category           String
+  budget             String
+  deadline           DateTime
+  technologies       String[] @default([])
+  eligibility        String?  @db.Text
+  evaluationCriteria String?  @db.Text
+  status             String   @default("OPEN") // DRAFT, OPEN, CLOSED, EVALUATING
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  SELECTED
+  REJECTED
+}
+
+model Application {
+  id          String    @id @default(cuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  startupId String
+  startup   Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  status ApplicationStatus @default(DRAFT)
+  pitch  String            @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evaluations Evaluation[]
+  pilots      Pilot[]
+}
+
+model Evaluation {
+  id          String @id @default(cuid())
+  evaluatorId String
+  evaluator   User   @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  scores     Json // E.g., { innovation: 8, feasibility: 7, scalability: 9 }
+  totalScore Float
+  feedback   String @db.Text
+
+  submittedAt DateTime @default(now())
+
+  @@unique([evaluatorId, applicationId])
+}
+
+model Pilot {
+  id        String  @id @default(cuid())
+  startupId String
+  startup   Startup @relation(fields: [startupId], references: [id])
+
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id])
+
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+
+  governmentDept String
+
+  timeline String
+  status   String @default("PLANNING") // PLANNING, ACTIVE, COMPLETED, CANCELLED
+  kpis     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks PilotTask[]
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+}
+
+model PilotTask {
+  id      String @id @default(cuid())
+  pilotId String
+  pilot   Pilot  @relation(fields: [pilotId], references: [id], onDelete: Cascade)
+
+  title  String
+  status TaskStatus @default(TODO)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Milestone {
+  id           String     @id @default(cuid())
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String   @db.Text
+  date        DateTime
+
+  createdAt DateTime @default(now())
+}
+
+model ImpactReport {
+  id           String     @id @default(cuid())
+  innovationId String
+  innovation   Innovation @relation(fields: [innovationId], references: [id], onDelete: Cascade)
+
+  metrics    Json // e.g. { costSavings: "10k", usersImpacted: 500 }
+  reportText String @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+model ProcurementDecision {
+  id             String @id @default(cuid())
+  innovationId   String
+  governmentDept String
+  status         String @default("UNDER_REVIEW") // APPROVED, REJECTED, PROCUREMENT_INITIATED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScalingOpportunity {
+  id           String @id @default(cuid())
+  innovationId String
+  title        String
+  description  String @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+// Messaging and Notifications
+
+model Conversation {
+  id    String  @id @default(cuid())
+  title String?
+  type  String  @default("DIRECT") // DIRECT, PROJECT, OPPORTUNITY
+
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content   String  @db.Text
+  readState Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  mentions Mention[]
+}
+
+model Mention {
+  id        String  @id @default(cuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id          String @id @default(cuid())
+  recipientId String
+  recipient   User   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  type          String
+  title         String
+  body          String  @db.Text
+  relatedEntity String? // e.g., "opportunity:123"
+  read          Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id         String @id @default(cuid())
+  reporterId String
+  reporter   User   @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  reportedUserId String?
+  reportedUser   User?   @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  entityType String // USER, POST, COMMENT
+  entityId   String?
+
+  reason      String
+  description String @db.Text
+  status      String @default("PENDING") // PENDING, RESOLVED, DISMISSED
+
+  createdAt DateTime @default(now())
 }

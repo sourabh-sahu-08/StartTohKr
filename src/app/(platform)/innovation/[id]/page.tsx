@@ -204,7 +204,7 @@ export default function InnovationStoryPage({ params }: { params: Promise<{ id: 
                 <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('INVESTMENT'); setOppModalOpen(true); }}>
                   <span>💰 Investment</span> <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
                 </Button>
-                <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('COLLABORATION'); setOppModalOpen(true); }}>
+                <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('TECHNICAL_COLLABORATION'); setOppModalOpen(true); }}>
                   <span>🤝 Collaboration</span> <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
                 </Button>
               </div>
