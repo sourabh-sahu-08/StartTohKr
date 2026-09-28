@@ -36,13 +36,13 @@ export async function markAllNotificationsAsRead() {
   });
 }
 
-export async function createSystemNotification(recipientId: string, title: string, body: string, link: string) {
+export async function createSystemNotification(recipientId: string, title: string, body: string, relatedEntity: string) {
   return prisma.notification.create({
     data: {
       recipientId,
       title,
       message,
-      link,
+      relatedEntity: link,
       read: false
     }
   });

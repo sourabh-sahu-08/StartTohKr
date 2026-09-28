@@ -88,7 +88,7 @@ export async function sendMessage(receiverId: string, content: string) {
       type: "MESSAGE",
       title: `New message from ${msg.sender.name}`,
       body: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-      link: '/messages',
+      relatedEntity: '/messages',
       read: false
     }
   });
