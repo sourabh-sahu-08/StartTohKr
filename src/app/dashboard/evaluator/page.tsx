@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { EyeOff, CheckCircle2, FileText, AlertCircle, TrendingUp, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { getApplicationsForEvaluation, getEvaluationsByMe, submitEvaluation, updateApplicationStatus } from "@/server/actions/evaluations";
+import { evaluationApi } from "@/lib/api/evaluation.api";
 
 export default function EvaluatorDashboard() {
   const { data: session } = useSession();
@@ -25,8 +25,8 @@ export default function EvaluatorDashboard() {
 
   const loadData = async () => {
     try {
-      const apps = await getApplicationsForEvaluation();
-      const evals = await getEvaluationsByMe();
+      const apps = await evaluationApi.getApplicationsToEvaluate() ?? [];
+      const evals = await evaluationApi.getMyEvaluations() ?? [];
       
       const evalAppIds = new Set(evals.map((e: any) => e.applicationId));
       
@@ -50,7 +50,7 @@ export default function EvaluatorDashboard() {
     }
     
     try {
-      await submitEvaluation(appId, evaluationScore, evaluationFeedback);
+      await evaluationApi.submit(appId, evaluationScore, evaluationFeedback);
       toast.success("Evaluation submitted successfully!");
       
       // If we just evaluated it, maybe we check if it reaches consensus.

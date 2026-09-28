@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, Users, FileText, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getGovernmentApplications, updateApplicationStatus } from "@/server/actions/evaluations";
+import { evaluationApi } from "@/lib/api/evaluation.api";
 import { challengeApi } from "@/lib/api/challenge.api";
 
 export default function GovernmentDashboard() {
@@ -40,8 +40,8 @@ export default function GovernmentDashboard() {
       const myChallenges = allChallenges.filter((c: any) => c.department === session?.user?.name);
       setChallenges(myChallenges);
 
-      const apps = await getGovernmentApplications();
-      setApplications(apps);
+      const apps = await evaluationApi.getGovernmentApplications();
+      setApplications(apps ?? []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -73,7 +73,7 @@ export default function GovernmentDashboard() {
 
   const handleUpdateAppStatus = async (appId: string, status: string) => {
     try {
-      await updateApplicationStatus(appId, status);
+      await evaluationApi.updateApplicationStatus(appId, status);
       toast.success(`Application marked as ${status}`);
       await loadData();
     } catch (e) {
