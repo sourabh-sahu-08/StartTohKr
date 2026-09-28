@@ -1,103 +1,86 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { InnovationPostWithDetails } from '@/services/innovation/innovation.types';
-import { DEMO_POSTS, DEMO_USERS } from '@/repositories/mock/demo-data';
-import { PostType, SignalType, CommentCategory } from '@prisma/client';
-import { useInnovationStore } from './innovationStore';
+import { getFeedPosts, createInnovationPost, toggleSignal } from '@/server/actions/feed';
 
 export type DiscoveryMode = 'MOMENTUM' | 'EARLY_IDEAS' | 'BUILDING' | 'READY_TO_PILOT' | 'SCALING' | 'MATCHED' | 'FRESH';
 
 interface FeedState {
-  posts: InnovationPostWithDetails[];
+  posts: any[];
   discoveryMode: DiscoveryMode;
+  search: string;
+  filters: {
+    industry: string[];
+    stage: string[];
+    tech: string[];
+    opps: string[];
+  };
+  isLoading: boolean;
   
   setDiscoveryMode: (mode: DiscoveryMode) => void;
-  addPost: (post: Omit<InnovationPostWithDetails, 'id' | 'createdAt' | 'updatedAt' | 'signals' | 'comments'>) => void;
-  toggleSignal: (userId: string, postId: string | null, innovationId: string | null, type: SignalType) => void;
-  addComment: (postId: string | null, innovationId: string | null, userId: string, category: CommentCategory, content: string) => void;
+  setSearch: (search: string) => void;
+  setFilters: (filters: any) => void;
+  
+  fetchPosts: () => Promise<void>;
+  
+  addPost: (post: any) => Promise<void>;
+  toggleSignal: (postId: string, type: string) => Promise<void>;
 }
 
 export const useFeedStore = create<FeedState>()(
-  persist(
-    (set, get) => ({
-      posts: DEMO_POSTS as any,
-      discoveryMode: 'MOMENTUM',
+  (set, get) => ({
+    posts: [],
+    discoveryMode: 'MOMENTUM',
+    search: '',
+    filters: { industry: [], stage: [], tech: [], opps: [] },
+    isLoading: false,
 
-      setDiscoveryMode: (mode) => set({ discoveryMode: mode }),
+    setDiscoveryMode: (mode) => {
+      set({ discoveryMode: mode });
+      get().fetchPosts();
+    },
+    
+    setSearch: (search) => {
+      set({ search });
+      get().fetchPosts();
+    },
 
-      addPost: (postData) => set((state) => {
-        const newPost = {
-          ...postData,
-          id: `post-${Date.now()}`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          signals: [],
-          comments: []
-        };
-        return { posts: [newPost as any, ...state.posts] };
-      }),
+    setFilters: (filters) => {
+      set({ filters });
+      get().fetchPosts();
+    },
 
-      toggleSignal: (userId, postId, innovationId, type) => set((state) => {
-        // Handle post signals
-        if (postId) {
-          const newPosts = state.posts.map(post => {
-            if (post.id === postId) {
-              const hasSignaled = post.signals.some(s => s.userId === userId && s.type === type);
-              let newSignals;
-              if (hasSignaled) {
-                newSignals = post.signals.filter(s => !(s.userId === userId && s.type === type));
-              } else {
-                const filtered = post.signals.filter(s => s.userId !== userId);
-                newSignals = [...filtered, { id: `sig-${Date.now()}`, userId, postId, innovationId: null, type, createdAt: new Date() } as any];
-              }
-              return { ...post, signals: newSignals };
-            }
-            return post;
-          });
-          
-          // Trigger momentum recalculation if it's tied to an innovation
-          const post = state.posts.find(p => p.id === postId);
-          if (post && post.innovationId) {
-             const sigCount = newPosts.find(p => p.id === postId)?.signals.length || 0;
-             useInnovationStore.getState().recalculateMomentum(post.innovationId, sigCount, 10, 2);
-          }
-          
-          return { posts: newPosts };
-        }
-        return state;
-      }),
+    fetchPosts: async () => {
+      set({ isLoading: true });
+      try {
+        const { discoveryMode, search, filters } = get();
+        const data = await getFeedPosts({ discoveryMode, search, filters });
+        set({ posts: data });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set({ isLoading: false });
+      }
+    },
 
-      addComment: (postId, innovationId, userId, category, content) => set((state) => {
-        const user = DEMO_USERS.find(u => u.id === userId) || { id: userId, name: "You", role: "STARTUP", image: "" };
-        const newComment = {
-          id: `com-${Date.now()}`,
-          userId,
-          user,
-          postId,
-          innovationId,
-          category,
-          content,
-          parentId: null,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        if (postId) {
-          const newPosts = state.posts.map(post => {
-            if (post.id === postId) {
-              return { ...post, comments: [...post.comments, newComment as any] };
-            }
-            return post;
-          });
-          return { posts: newPosts };
-        }
-        
-        return state;
-      }),
-    }),
-    {
-      name: 'starttohkr-feed',
+    addPost: async (postData: any) => {
+      try {
+        await createInnovationPost({ 
+          content: JSON.stringify(postData.content), 
+          type: postData.type, 
+          innovationId: postData.innovationId || "" 
+        });
+        await get().fetchPosts();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    toggleSignal: async (postId, type) => {
+      try {
+        await toggleSignal(postId, type);
+        await get().fetchPosts();
+      } catch (err) {
+        console.error(err);
+      }
     }
-  )
+  })
 );
