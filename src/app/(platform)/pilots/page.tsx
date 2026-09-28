@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlayCircle, CheckCircle2, Clock, AlertCircle, Plus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getPilots, createPilotTask, updatePilotTaskStatus } from "@/server/actions/pilots";
+import { pilotApi } from "@/lib/api/pilot.api";
 import { Input } from "@/components/ui/input";
 
 export default function PilotsPage() {
@@ -18,8 +18,8 @@ export default function PilotsPage() {
 
   const loadData = async () => {
     try {
-      const data = await getPilots();
-      setPilots(data);
+      const data = await pilotApi.getAll();
+      setPilots(data ?? []);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load pilots");
@@ -35,7 +35,7 @@ export default function PilotsPage() {
   const handleAddTask = async (pilotId: string) => {
     if (!newTaskTitle.trim()) return;
     try {
-      await createPilotTask(pilotId, newTaskTitle);
+      await pilotApi.createTask(pilotId, newTaskTitle);
       setNewTaskTitle("");
       await loadData();
     } catch (e) {
@@ -49,7 +49,7 @@ export default function PilotsPage() {
     if (currentStatus === 'COMPLETED') nextStatus = 'TODO';
     
     try {
-      await updatePilotTaskStatus(taskId, nextStatus);
+      await pilotApi.updateTaskStatus(taskId, nextStatus);
       await loadData();
     } catch (e) {
       toast.error("Failed to update task");
