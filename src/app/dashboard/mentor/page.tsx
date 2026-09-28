@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Handshake, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getMentorshipCandidates, getMyMentorships } from "@/server/actions/mentors";
-import { sendOpportunity } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type MentorshipCandidate = Awaited<ReturnType<typeof getMentorshipCandidates>>[0];
@@ -36,7 +36,7 @@ export default function MentorDashboard() {
   const handleOfferMentorship = async (invId: string) => {
     try {
       setRequestingId(invId);
-      await sendOpportunity({ innovationId: invId, type: "MENTORSHIP", message: "I would love to offer my mentorship to help guide your startup." });
+      await interactionApi.sendOpportunity({ innovationId: invId, type: "MENTORSHIP", message: "I would love to offer my mentorship to help guide your startup." });
       toast.success("Mentorship offer sent successfully!");
       
       const updatedMentorships = await getMyMentorships();

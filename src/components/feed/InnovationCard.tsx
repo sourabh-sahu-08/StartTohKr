@@ -15,7 +15,7 @@ import { useFeedStore } from "@/store/feedStore";
 
 
 import { PostType, SignalType, OpportunityType } from "@prisma/client";
-import { toggleTrack as serverToggleTrack, toggleSave as serverToggleSave, sendOpportunity as serverSendOpportunity } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -59,7 +59,7 @@ export function InnovationCard({ post, currentUserId }: { post: InnovationPostWi
 
   const handleSendOpportunity = () => {
     if (!selectedOpp) return;
-    serverSendOpportunity({ innovationId: innovation.id, type: selectedOpp, message: oppMessage });
+    interactionApi.sendOpportunity({ innovationId: innovation.id, type: selectedOpp, message: oppMessage });
     setOppModalOpen(false);
     toast.success("Opportunity request sent to the startup!");
     setOppMessage("");
@@ -134,7 +134,7 @@ export function InnovationCard({ post, currentUserId }: { post: InnovationPostWi
               } />
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => {
-                  serverToggleSave('INNOVATION', innovation.id).then(res => { setIsSaved(res.action === 'saved'); toast(res.action === 'saved' ? 'Saved to Collections' : 'Removed from Saved'); });
+                  interactionApi.toggleSave('INNOVATION', innovation.id).then(res => { setIsSaved(res.action === 'saved'); toast(res.action === 'saved' ? 'Saved to Collections' : 'Removed from Saved'); });
                 }}>
                   <Bookmark className="mr-2 h-4 w-4" /> {isSaved ? "Unsave" : "Save for later"}
                 </DropdownMenuItem>
@@ -226,7 +226,7 @@ export function InnovationCard({ post, currentUserId }: { post: InnovationPostWi
               size="sm" 
               className={`h-9 px-3 gap-2 ${isTracked ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-muted-foreground hover:bg-muted'}`}
               onClick={() => {
-                serverToggleTrack(innovation.id).then(res => { setIsTracked(res.action === 'tracked'); toast(res.action === 'tracked' ? 'Tracking added to Watchlist' : 'Removed from Watchlist'); });
+                interactionApi.toggleTrack(innovation.id).then(res => { setIsTracked(res.action === 'tracked'); toast(res.action === 'tracked' ? 'Tracking added to Watchlist' : 'Removed from Watchlist'); });
               }}
             >
               <Eye className="h-4 w-4" /> 

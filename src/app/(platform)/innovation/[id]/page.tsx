@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { OpportunityType } from "@prisma/client";
 import { innovationApi } from "@/lib/api/innovation.api";
-import { toggleTrack, toggleSave, sendOpportunity } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 import { addComment } from "@/server/actions/comments"; // We need to create this!
 
 export default function InnovationStoryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -58,13 +58,13 @@ export default function InnovationStoryPage({ params }: { params: Promise<{ id: 
   if (!innovation) return <div className="p-12 text-center text-muted-foreground font-medium">Innovation not found.</div>;
 
   const handleTrack = async () => {
-    const res = await toggleTrack(innovation.id);
+    const res = await interactionApi.toggleTrack(innovation.id);
     setIsTracked(res.action === 'tracked');
     toast.success(res.action === 'tracked' ? "Tracking this innovation" : "Untracked");
   };
 
   const handleSave = async () => {
-    const res = await toggleSave('INNOVATION', innovation.id);
+    const res = await interactionApi.toggleSave('INNOVATION', innovation.id);
     setIsSaved(res.action === 'saved');
     toast.success(res.action === 'saved' ? "Saved to your collections" : "Removed from saved");
   };
@@ -72,7 +72,7 @@ export default function InnovationStoryPage({ params }: { params: Promise<{ id: 
   const handleSendOpportunity = async () => {
     if (!selectedOpp) return;
     try {
-      await sendOpportunity({ innovationId: innovation.id, type: selectedOpp, message: oppMessage });
+      await interactionApi.sendOpportunity({ innovationId: innovation.id, type: selectedOpp, message: oppMessage });
       setOppModalOpen(false);
       setOppMessage("");
       toast.success("Opportunity request sent to the startup!");

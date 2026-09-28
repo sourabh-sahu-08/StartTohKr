@@ -8,7 +8,7 @@ import { Bookmark, ExternalLink, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { getSavedItems } from "@/server/actions/collections";
-import { toggleSave } from "@/server/actions/interactions";
+import { interactionApi } from "@/lib/api/interaction.api";
 
 export default function SavedPage() {
   const [savedList, setSavedList] = useState<any[]>([]);
@@ -31,7 +31,7 @@ export default function SavedPage() {
 
   const handleUnsave = async (id: string) => {
     try {
-      await toggleSave('INNOVATION', id);
+      await interactionApi.toggleSave('INNOVATION', id);
       toast.success("Removed from Saved");
       setSavedList(prev => prev.filter(i => i.id !== id));
     } catch (e) {

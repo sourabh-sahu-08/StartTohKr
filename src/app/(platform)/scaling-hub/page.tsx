@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Rocket, FileText, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getScalingHubInnovations } from "@/server/actions/scaling";
-import { sendOpportunity } from "@/server/actions/interactions";
+import { scalingApi } from "@/lib/api/scaling.api";
+import { interactionApi } from "@/lib/api/interaction.api";
 
 export default function ScalingHubPage() {
   const [innovations, setInnovations] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export default function ScalingHubPage() {
   const handleRequestProposal = async (invId: string) => {
     try {
       setRequestingId(invId);
-      await sendOpportunity({ innovationId: invId, type: "GOVERNMENT_PILOT", message: "We are interested in procuring your proven solution for our department." });
+      await interactionApi.sendOpportunity({ innovationId: invId, type: "GOVERNMENT_PILOT", message: "We are interested in procuring your proven solution for our department." });
       toast.success("Procurement proposal requested successfully!");
     } catch (e: any) {
       toast.error(e.message || "Failed to request proposal");
@@ -28,8 +28,8 @@ export default function ScalingHubPage() {
   };
 
   useEffect(() => {
-    getScalingHubInnovations()
-      .then(setInnovations)
+    scalingApi.getScalingHubInnovations()
+      .then(data => setInnovations(data ?? []))
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
