@@ -44,9 +44,9 @@ export default function PilotsPage() {
   };
 
   const handleUpdateTask = async (taskId: string, currentStatus: string) => {
-    let nextStatus: 'TODO' | 'IN_PROGRESS' | 'DONE' = 'IN_PROGRESS';
-    if (currentStatus === 'IN_PROGRESS') nextStatus = 'DONE';
-    if (currentStatus === 'DONE') nextStatus = 'TODO';
+    let nextStatus: 'TODO' | 'IN_PROGRESS' | 'COMPLETED' = 'IN_PROGRESS';
+    if (currentStatus === 'IN_PROGRESS') nextStatus = 'COMPLETED';
+    if (currentStatus === 'COMPLETED') nextStatus = 'TODO';
     
     try {
       await updatePilotTaskStatus(taskId, nextStatus);
@@ -76,7 +76,7 @@ export default function PilotsPage() {
       ) : (
         <div className="grid gap-6">
           {pilots.map(pilot => {
-            const completedTasks = pilot.tasks.filter((t: any) => t.status === 'DONE').length;
+            const completedTasks = pilot.tasks.filter((t: any) => t.status === 'COMPLETED').length;
             const totalTasks = Math.max(pilot.tasks.length, 1);
             const progress = (completedTasks / totalTasks) * 100;
 
@@ -117,11 +117,11 @@ export default function PilotsPage() {
                       <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-background hover:bg-muted/10 transition-colors">
                         <div className="flex items-center gap-3">
                           <button onClick={() => handleUpdateTask(task.id, task.status)} className="focus:outline-none">
-                            {task.status === 'DONE' ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> :
+                            {task.status === 'COMPLETED' ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> :
                              task.status === 'IN_PROGRESS' ? <PlayCircle className="w-5 h-5 text-indigo-500" /> :
                              <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />}
                           </button>
-                          <span className={`text-sm font-medium ${task.status === 'DONE' ? 'line-through text-muted-foreground' : ''}`}>
+                          <span className={`text-sm font-medium ${task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                             {task.title}
                           </span>
                         </div>

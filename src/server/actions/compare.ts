@@ -12,7 +12,7 @@ export async function getAllInnovationsCompact() {
       tagline: true,
       category: true,
       stage: true,
-      budget: true,
+      
       timeline: true,
       momentumScore: true,
       startup: { select: { name: true } }

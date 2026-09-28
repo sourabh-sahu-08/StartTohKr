@@ -53,7 +53,7 @@ export async function createPilotTask(pilotId: string, title: string) {
   });
 }
 
-export async function updatePilotTaskStatus(taskId: string, status: 'TODO' | 'IN_PROGRESS' | 'DONE') {
+export async function updatePilotTaskStatus(taskId: string, status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED') {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
 

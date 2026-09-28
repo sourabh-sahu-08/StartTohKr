@@ -18,7 +18,7 @@ export default function ScalingHubPage() {
   const handleRequestProposal = async (invId: string) => {
     try {
       setRequestingId(invId);
-      await sendOpportunity(invId, "GOVERNMENT_PILOT", "We are interested in procuring your proven solution for our department.");
+      await sendOpportunity({ innovationId: invId, type: "GOVERNMENT_PILOT", message: "We are interested in procuring your proven solution for our department." });
       toast.success("Procurement proposal requested successfully!");
     } catch (e: any) {
       toast.error(e.message || "Failed to request proposal");
@@ -81,11 +81,7 @@ export default function ScalingHubPage() {
                 )}
               </CardContent>
               <CardFooter className="gap-2 border-t bg-muted/10 p-4">
-                <Button variant="outline" className="flex-1 bg-white" asChild>
-                  <Link href={`/innovation/${inv.id}`}>
-                    <FileText className="w-4 h-4 mr-2" /> Details
-                  </Link>
-                </Button>
+                <Button variant="outline" className="flex-1 bg-white" render={<Link href={`/innovation/${inv.id}`} />}><FileText className="w-4 h-4 mr-2" /> Details</Button>
                 <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleRequestProposal(inv.id)} disabled={requestingId === inv.id}>
                   {requestingId === inv.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />} Request Proposal
                 </Button>

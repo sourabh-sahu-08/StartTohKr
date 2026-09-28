@@ -13,12 +13,12 @@ export async function getPromisingInnovations() {
   return prisma.innovation.findMany({
     where: {
       OR: [
-        { stage: "EARLY_TRACTION" },
+        { stage: "MVP" },
         { stage: "SCALING" }
       ]
     },
     include: {
-      startup: { select: { name: true, industry: true, location: true } }
+      startup: { select: { name: true, image: true } }
     },
     orderBy: { momentumScore: 'desc' },
     take: 10
