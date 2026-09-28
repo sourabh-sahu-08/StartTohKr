@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getChallenges, createChallenge as serverCreateChallenge, submitApplication as serverSubmitApp } from '@/server/actions/challenges';
+import { challengeApi } from '@/lib/api/challenge.api';
 
 export interface Challenge {
   id: string;
@@ -42,7 +42,7 @@ export const useChallengeStore = create<ChallengeState>()(
     fetchChallenges: async () => {
       set({ isLoading: true });
       try {
-        const data = await getChallenges();
+        const data = await challengeApi.getAll();
         set({ challenges: data as any[] });
       } catch (err) {
         console.error(err);
@@ -55,7 +55,7 @@ export const useChallengeStore = create<ChallengeState>()(
     
     createChallenge: async (challengeData) => {
       try {
-        await serverCreateChallenge({
+        await challengeApi.create({
           title: challengeData.title,
           department: challengeData.department,
           description: challengeData.description,
@@ -77,7 +77,7 @@ export const useChallengeStore = create<ChallengeState>()(
     
     submitApplication: async (app) => {
       try {
-        await serverSubmitApp(app.challengeId, app.innovationId, app.pitch);
+        await challengeApi.submitApplication(app.challengeId, app.innovationId, app.pitch);
         await get().fetchChallenges();
       } catch (err) {
         console.error(err);

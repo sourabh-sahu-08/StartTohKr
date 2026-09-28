@@ -14,7 +14,7 @@ import { Plus, Users, FileText, CheckCircle2, XCircle, Loader2 } from "lucide-re
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getGovernmentApplications, updateApplicationStatus } from "@/server/actions/evaluations";
-import { getChallenges, createChallenge } from "@/server/actions/challenges";
+import { challengeApi } from "@/lib/api/challenge.api";
 
 export default function GovernmentDashboard() {
   const { data: session } = useSession();
@@ -35,9 +35,9 @@ export default function GovernmentDashboard() {
 
   const loadData = async () => {
     try {
-      const allChallenges = await getChallenges();
+      const allChallenges = await challengeApi.getAll() ?? [];
       // Only show challenges authored by this government user
-      const myChallenges = allChallenges.filter(c => c.department === session?.user?.name);
+      const myChallenges = allChallenges.filter((c: any) => c.department === session?.user?.name);
       setChallenges(myChallenges);
 
       const apps = await getGovernmentApplications();
@@ -55,7 +55,7 @@ export default function GovernmentDashboard() {
 
   const handleCreateChallenge = async () => {
     try {
-      await createChallenge({
+      await challengeApi.create({
         title: newChallenge.title,
         department: newChallenge.department,
         description: newChallenge.description,
