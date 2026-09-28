@@ -11,7 +11,7 @@ import { Building2, MessageSquare, CheckCircle2, XCircle, Clock, ExternalLink, L
 import { toast } from "sonner";
 import Link from "next/link";
 import { OpportunityStatus } from "@prisma/client";
-import { getOpportunities, updateOpportunityStatus } from "@/server/actions/opportunities";
+import { opportunityApi } from "@/lib/api/opportunity.api";
 
 export default function OpportunitiesPage() {
   const { data: session } = useSession();
@@ -22,8 +22,8 @@ export default function OpportunitiesPage() {
 
   const loadData = async () => {
     try {
-      const data = await getOpportunities();
-      setOpportunities(data);
+      const data = await opportunityApi.getAll();
+      setOpportunities(data ?? []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -37,7 +37,7 @@ export default function OpportunitiesPage() {
 
   const handleStatusUpdate = async (oppId: string, status: OpportunityStatus) => {
     try {
-      await updateOpportunityStatus(oppId, status);
+      await opportunityApi.updateStatus(oppId, status);
       toast.success(`Opportunity ${status.toLowerCase()}`);
       await loadData();
     } catch (e) {
