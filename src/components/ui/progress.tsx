@@ -3,27 +3,26 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/lib/utils"
+import React from "react"
 
-function Progress({
-  className,
-  children,
-  value,
-  ...props
-}: ProgressPrimitive.Root.Props) {
-  return (
-    <ProgressPrimitive.Root
-      value={value}
-      data-slot="progress"
-      className={cn("flex flex-wrap gap-3", className)}
-      {...props}
-    >
-      {children}
-      <ProgressTrack>
-        <ProgressIndicator />
-      </ProgressTrack>
-    </ProgressPrimitive.Root>
-  )
-}
+const Progress = React.forwardRef<
+  React.ElementRef<typeof ProgressPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> & { indicatorColor?: string }
+>(({ className, value, children, indicatorColor, ...props }, ref) => (
+  <ProgressPrimitive.Root
+    ref={ref}
+    value={value}
+    data-slot="progress"
+    className={cn("flex flex-wrap gap-3", className)}
+    {...props}
+  >
+    {children}
+    <ProgressTrack>
+      <ProgressIndicator className={indicatorColor} />
+    </ProgressTrack>
+  </ProgressPrimitive.Root>
+))
+Progress.displayName = "Progress"
 
 function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
   return (

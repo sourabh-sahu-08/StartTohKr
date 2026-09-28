@@ -1,107 +1,86 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { InnovationPostWithDetails, InnovationWithDetails } from '@/services/innovation/innovation.types';
-import { MOCK_POSTS, MOCK_INNOVATIONS, MOCK_USERS } from '@/repositories/mock/mock-data';
-import { PostType, SignalType, OpportunityStatus, OpportunityType, CommentCategory } from '@prisma/client';
+import { feedApi } from '@/lib/api/feed.api';
 
-export type DiscoveryMode = 'MOMENTUM' | 'EARLY_IDEAS' | 'PROTOTYPES' | 'READY_TO_PILOT' | 'SCALING' | 'MATCHED';
+export type DiscoveryMode = 'MOMENTUM' | 'EARLY_IDEAS' | 'BUILDING' | 'READY_TO_PILOT' | 'SCALING' | 'MATCHED' | 'FRESH';
 
 interface FeedState {
-  posts: InnovationPostWithDetails[];
-  innovations: InnovationWithDetails[];
-  trackedInnovations: string[]; // innovationIds
+  posts: any[];
   discoveryMode: DiscoveryMode;
+  search: string;
+  filters: {
+    industry: string[];
+    stage: string[];
+    tech: string[];
+    opps: string[];
+  };
+  isLoading: boolean;
   
-  // Actions
   setDiscoveryMode: (mode: DiscoveryMode) => void;
-  addPost: (post: Omit<InnovationPostWithDetails, 'id' | 'createdAt' | 'updatedAt' | 'signals' | 'comments'>) => void;
-  toggleSignal: (userId: string, postId: string, type: SignalType) => void;
-  toggleTrack: (innovationId: string) => void;
-  addComment: (postId: string, userId: string, category: CommentCategory, content: string) => void;
-  requestOpportunity: (innovationId: string, requesterId: string, type: OpportunityType, message: string) => void;
+  setSearch: (search: string) => void;
+  setFilters: (filters: any) => void;
+  
+  fetchPosts: () => Promise<void>;
+  
+  addPost: (post: any) => Promise<void>;
+  toggleSignal: (postId: string, type: string) => Promise<void>;
 }
 
 export const useFeedStore = create<FeedState>()(
-  persist(
-    (set, get) => ({
-      posts: MOCK_POSTS as any,
-      innovations: MOCK_INNOVATIONS as any,
-      trackedInnovations: [],
-      discoveryMode: 'MOMENTUM',
+  (set, get) => ({
+    posts: [],
+    discoveryMode: 'MOMENTUM',
+    search: '',
+    filters: { industry: [], stage: [], tech: [], opps: [] },
+    isLoading: false,
 
-      setDiscoveryMode: (mode) => set({ discoveryMode: mode }),
+    setDiscoveryMode: (mode) => {
+      set({ discoveryMode: mode });
+      get().fetchPosts();
+    },
+    
+    setSearch: (search) => {
+      set({ search });
+      get().fetchPosts();
+    },
 
-      addPost: (postData) => set((state) => {
-        const newPost = {
-          ...postData,
-          id: `post-${Date.now()}`,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          signals: [],
-          comments: []
-        };
-        return { posts: [newPost as any, ...state.posts] };
-      }),
+    setFilters: (filters) => {
+      set({ filters });
+      get().fetchPosts();
+    },
 
-      toggleSignal: (userId, postId, type) => set((state) => {
-        const newPosts = state.posts.map(post => {
-          if (post.id === postId) {
-            const hasSignaled = post.signals.some(s => s.userId === userId && s.type === type);
-            let newSignals;
-            if (hasSignaled) {
-              newSignals = post.signals.filter(s => !(s.userId === userId && s.type === type));
-            } else {
-              // Remove other signals from this user on this post if any
-              const filtered = post.signals.filter(s => s.userId !== userId);
-              newSignals = [...filtered, { id: `sig-${Date.now()}`, userId, postId, type } as any];
-            }
-            return { ...post, signals: newSignals };
-          }
-          return post;
-        });
-        return { posts: newPosts };
-      }),
-
-      toggleTrack: (innovationId) => set((state) => {
-        const isTracked = state.trackedInnovations.includes(innovationId);
-        if (isTracked) {
-          return { trackedInnovations: state.trackedInnovations.filter(id => id !== innovationId) };
-        } else {
-          return { trackedInnovations: [...state.trackedInnovations, innovationId] };
-        }
-      }),
-
-      addComment: (postId, userId, category, content) => set((state) => {
-        const user = MOCK_USERS.find(u => u.id === userId) || { id: userId, name: "You", role: "STARTUP", image: "" };
-        const newComment = {
-          id: `com-${Date.now()}`,
-          userId,
-          user,
-          postId,
-          category,
-          content,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        
-        const newPosts = state.posts.map(post => {
-          if (post.id === postId) {
-            return { ...post, comments: [...post.comments, newComment as any] };
-          }
-          return post;
-        });
-        return { posts: newPosts };
-      }),
-
-      requestOpportunity: (innovationId, requesterId, type, message) => {
-        // Just mock action, no global state needed unless we build opportunity tracking view
-        console.log(`Opportunity ${type} requested for ${innovationId} by ${requesterId}: ${message}`);
+    fetchPosts: async () => {
+      set({ isLoading: true });
+      try {
+        const { discoveryMode, search, filters } = get();
+        const data = await feedApi.getPosts({ discoveryMode, search, filters });
+        set({ posts: data });
+      } catch (err) {
+        console.error(err);
+      } finally {
+        set({ isLoading: false });
       }
-    }),
-    {
-      name: 'starttohkr-feed-storage',
-      // Partialize to not persist date objects properly if not hydrating correctly, but keeping it simple
+    },
+
+    addPost: async (postData: any) => {
+      try {
+        await feedApi.createPost({ 
+          content: typeof postData.content === 'string' ? postData.content : JSON.stringify(postData.content), 
+          type: postData.type, 
+          innovationId: postData.innovationId || "" 
+        });
+        await get().fetchPosts();
+      } catch (err) {
+        console.error(err);
+      }
+    },
+
+    toggleSignal: async (postId, type) => {
+      try {
+        await feedApi.toggleSignal(postId, type);
+        await get().fetchPosts();
+      } catch (err) {
+        console.error(err);
+      }
     }
-  )
+  })
 );

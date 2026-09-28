@@ -1,186 +1,268 @@
 "use client";
 
-import { useFeedStore } from "@/store/feedStore";
+import { use, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowRight, Bookmark, Building, CheckCircle2, ChevronLeft, MapPin, Target, ExternalLink, Lightbulb, TrendingUp } from "lucide-react";
+import { Bookmark, Building, CheckCircle2, ChevronLeft, Target, ExternalLink, Lightbulb, Flame, MessageSquare, Briefcase, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { InnovationStage } from "@prisma/client";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { OpportunityType } from "@prisma/client";
+import { innovationApi } from "@/lib/api/innovation.api";
+import { interactionApi } from "@/lib/api/interaction.api";
+import { addComment } from "@/server/actions/comments"; // We need to create this!
 
-export default function InnovationStoryPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const { innovations, toggleTrack, trackedInnovations } = useFeedStore();
+export default function InnovationStoryPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
+  
+  const [innovation, setInnovation] = useState<any>(null);
+  const [similarInnovations, setSimilarInnovations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [oppModalOpen, setOppModalOpen] = useState(false);
+  const [selectedOpp, setSelectedOpp] = useState<OpportunityType | null>(null);
+  const [oppMessage, setOppMessage] = useState("");
+  const [commentText, setCommentText] = useState("");
+  
+  const [isTracked, setIsTracked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
-  const innovation = innovations.find(i => i.id === id) || innovations[0]; // fallback for demo
-  const isTracked = trackedInnovations.includes(innovation.id);
+  const loadData = async () => {
+    try {
+      const data = await innovationApi.getById(id);
+      setInnovation(data);
+      if (data) {
+        const similar = await innovationApi.getSimilar(data.category, data.id);
+        setSimilarInnovations(similar);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const STAGES: InnovationStage[] = ['IDEA', 'PROTOTYPE', 'MVP', 'PILOT', 'SCALING'];
+  useEffect(() => {
+    loadData();
+  }, [id]);
 
-  const getStageColor = (stage: InnovationStage) => {
-    switch (stage) {
-      case 'IDEA': return 'bg-gray-200 text-gray-700';
-      case 'PROTOTYPE': return 'bg-blue-100 text-blue-700';
-      case 'MVP': return 'bg-indigo-100 text-indigo-700';
-      case 'PILOT': return 'bg-amber-100 text-amber-700';
-      case 'SCALING': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100';
+  if (isLoading) {
+    return <div className="p-12 text-center text-muted-foreground flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
+
+  if (!innovation) return <div className="p-12 text-center text-muted-foreground font-medium">Innovation not found.</div>;
+
+  const handleTrack = async () => {
+    const res = await interactionApi.toggleTrack(innovation.id);
+    setIsTracked(res.action === 'tracked');
+    toast.success(res.action === 'tracked' ? "Tracking this innovation" : "Untracked");
+  };
+
+  const handleSave = async () => {
+    const res = await interactionApi.toggleSave('INNOVATION', innovation.id);
+    setIsSaved(res.action === 'saved');
+    toast.success(res.action === 'saved' ? "Saved to your collections" : "Removed from saved");
+  };
+
+  const handleSendOpportunity = async () => {
+    if (!selectedOpp) return;
+    try {
+      await interactionApi.sendOpportunity({ innovationId: innovation.id, type: selectedOpp, message: oppMessage });
+      setOppModalOpen(false);
+      setOppMessage("");
+      toast.success("Opportunity request sent to the startup!");
+    } catch (e) {
+      toast.error("Failed to send opportunity.");
+    }
+  };
+  
+  const handleAddComment = async (postId: string) => {
+    if (!commentText.trim()) return;
+    try {
+      await addComment({ postId, innovationId: innovation.id, content: commentText, category: 'GENERAL' });
+      setCommentText("");
+      toast.success("Comment added!");
+      await loadData();
+    } catch (e) {
+      toast.error("Failed to add comment.");
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <Link href="/feed" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary">
-        <ChevronLeft className="w-4 h-4 mr-1" /> Back to Discovery
-      </Link>
-
-      {/* Hero Section */}
-      <div className="flex flex-col md:flex-row gap-8 items-start justify-between">
-        <div className="space-y-4 flex-1">
-          <div className="flex gap-4 items-center mb-2">
-            <Avatar className="h-16 w-16 border-2 shadow-sm">
-              <AvatarImage src={innovation.startup.image || ''} />
-              <AvatarFallback className="font-bold text-xl">{innovation.startup.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight">{innovation.title}</h1>
-              <p className="text-muted-foreground font-medium flex items-center gap-2">
-                <Building className="w-4 h-4" /> {innovation.startup.name} 
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              </p>
-            </div>
-          </div>
-          
-          <p className="text-xl text-primary font-medium">{innovation.tagline}</p>
-          
-          <div className="flex flex-wrap gap-2 pt-2">
-            {innovation.technologies.map(tech => (
-              <Badge key={tech} variant="secondary">{tech}</Badge>
-            ))}
-          </div>
-        </div>
-
-        <div className="w-full md:w-auto flex flex-col gap-3 min-w-[200px]">
-          <Button 
-            className={`w-full font-bold h-12 text-md transition-colors ${isTracked ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
-            onClick={() => {
-              toggleTrack(innovation.id);
-              toast(isTracked ? "Removed from Watchlist" : "Added to Watchlist");
-            }}
-          >
-            <Bookmark className={`w-5 h-5 mr-2 ${isTracked ? 'fill-current' : ''}`} /> 
-            {isTracked ? 'Tracked' : 'Track Innovation'}
-          </Button>
-          <Button variant="outline" className="w-full font-bold h-12 text-md border-primary/20 hover:bg-primary/5">
-            <Target className="w-5 h-5 mr-2" /> Offer Opportunity
-          </Button>
-        </div>
+    <div className="max-w-6xl mx-auto pb-20">
+      <div className="mb-6">
+        <Link href="/feed" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back to Discovery
+        </Link>
       </div>
 
-      {/* Stage Journey */}
-      <Card className="border-none bg-muted/30 shadow-none">
-        <CardContent className="p-6">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-6">Innovation Journey</h3>
-          <div className="flex items-center justify-between font-bold text-xs sm:text-sm">
-            {STAGES.map((s, i) => (
-              <div key={s} className="flex items-center flex-1">
-                <div className="relative flex flex-col items-center flex-1">
-                  <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-all ${
-                    s === innovation.stage 
-                      ? getStageColor(s) + ' ring-4 ring-primary/20 scale-125 z-10' 
-                      : STAGES.indexOf(s) < STAGES.indexOf(innovation.stage)
-                        ? 'bg-primary/80 text-primary-foreground'
-                        : 'bg-background border-2 border-dashed text-muted-foreground'
-                  }`}>
-                    {STAGES.indexOf(s) <= STAGES.indexOf(innovation.stage) ? <CheckCircle2 className="w-4 h-4" /> : i+1}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">{innovation.category}</Badge>
+              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">{innovation.stage}</Badge>
+            </div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground leading-tight">
+              {innovation.title}
+            </h1>
+            <p className="text-xl text-muted-foreground font-medium leading-relaxed">
+              {innovation.tagline}
+            </p>
+            
+            <div className="flex flex-wrap items-center gap-4 pt-4 pb-2 border-b">
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10 border shadow-sm">
+                  <AvatarImage src={innovation.startup?.image || ""} />
+                  <AvatarFallback className="font-bold">{innovation.startup?.name?.charAt(0) || "S"}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-bold text-sm flex items-center gap-1">
+                    {innovation.startup?.name} 
+                    {innovation.startup?.startupProfile?.verification === 'VERIFIED' && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
                   </div>
-                  <span className={`absolute top-10 font-bold ${s === innovation.stage ? 'text-primary' : 'text-muted-foreground'}`}>{s}</span>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Building className="w-3 h-3" /> {innovation.startup?.startupProfile?.location || "India"}
+                  </div>
                 </div>
-                {i < STAGES.length - 1 && <div className={`flex-1 h-1 ${STAGES.indexOf(s) < STAGES.indexOf(innovation.stage) ? 'bg-primary/80' : 'bg-border border-dashed'}`} />}
               </div>
-            ))}
+              <div className="ml-auto flex gap-2">
+                <Button variant={isTracked ? "default" : "outline"} className={isTracked ? "bg-indigo-600 hover:bg-indigo-700" : ""} onClick={handleTrack}>
+                  <Target className="w-4 h-4 mr-2" /> {isTracked ? "Tracking" : "Track"}
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleSave} className={isSaved ? "text-indigo-600 border-indigo-200 bg-indigo-50" : ""}>
+                  <Bookmark className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Deep Dive Grid */}
-      <div className="grid md:grid-cols-3 gap-8 pt-8">
-        <div className="md:col-span-2 space-y-12">
-          
-          <section className="space-y-4">
-            <h2 className="text-2xl font-black text-rose-600 flex items-center gap-2">
-              <span className="bg-rose-100 p-2 rounded-lg"><Target className="w-6 h-6" /></span>
-              The Challenge
-            </h2>
-            <div className="prose prose-rose dark:prose-invert max-w-none">
-              <p className="text-lg leading-relaxed font-medium">{innovation.problem}</p>
+          <section className="space-y-6">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-3"><Lightbulb className="w-5 h-5 text-amber-500" /> The Problem</h2>
+              <p className="text-foreground/90 leading-relaxed bg-amber-50/50 p-4 rounded-xl border border-amber-100">{innovation.problem}</p>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-3"><Flame className="w-5 h-5 text-emerald-500" /> The Solution</h2>
+              <p className="text-foreground/90 leading-relaxed bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">{innovation.solution}</p>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-3"><Target className="w-5 h-5 text-indigo-500" /> Measurable Impact</h2>
+              <p className="text-foreground/90 leading-relaxed bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">{innovation.impact}</p>
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h2 className="text-2xl font-black text-indigo-600 flex items-center gap-2">
-              <span className="bg-indigo-100 p-2 rounded-lg"><Lightbulb className="w-6 h-6" /></span>
-              The Solution
-            </h2>
-            <div className="prose prose-indigo dark:prose-invert max-w-none">
-              <p className="text-lg leading-relaxed">{innovation.solution}</p>
+          <section className="pt-6 border-t">
+            <h2 className="text-2xl font-bold mb-6">Discussions & Updates</h2>
+            
+            <div className="space-y-6">
+              {innovation.posts?.map((post: any) => (
+                <Card key={post.id} className="shadow-sm">
+                  <CardContent className="p-5">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={post.author?.image} />
+                          <AvatarFallback>{post.author?.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold">{post.author?.name}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <Badge>{post.type}</Badge>
+                    </div>
+                    <p className="text-sm mb-4">{post.content?.text}</p>
+                    
+                    <div className="space-y-3 pt-3 border-t">
+                      {post.comments?.map((comment: any) => (
+                        <div key={comment.id} className="flex gap-2 text-sm bg-muted/30 p-2 rounded-md">
+                          <Avatar className="w-6 h-6"><AvatarFallback>{comment.user?.name?.charAt(0)}</AvatarFallback></Avatar>
+                          <div>
+                            <span className="font-semibold mr-2">{comment.user?.name}</span>
+                            <span className="text-muted-foreground">{comment.content}</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Input placeholder="Add an insight..." value={commentText} onChange={e => setCommentText(e.target.value)} className="h-8 text-sm" />
+                        <Button size="sm" onClick={() => handleAddComment(post.id)}>Post</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {(!innovation.posts || innovation.posts.length === 0) && (
+                <div className="text-center p-8 border border-dashed rounded-xl text-muted-foreground">No updates yet.</div>
+              )}
             </div>
           </section>
-
-          <section className="space-y-4">
-            <h2 className="text-2xl font-black text-emerald-600 flex items-center gap-2">
-              <span className="bg-emerald-100 p-2 rounded-lg"><TrendingUp className="w-6 h-6" /></span>
-              Measurable Impact
-            </h2>
-            <div className="prose prose-emerald dark:prose-invert max-w-none border-l-4 border-emerald-500 pl-6 bg-emerald-50/50 dark:bg-emerald-950/20 py-4 rounded-r-xl">
-              <p className="text-xl font-bold leading-relaxed m-0 text-emerald-900 dark:text-emerald-100">{innovation.impact}</p>
-            </div>
-          </section>
-
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="bg-muted/30 pb-4">
-              <h3 className="font-black uppercase tracking-wider text-sm">Active Opportunities</h3>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="border rounded-lg p-3 hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer transition-colors">
-                <p className="font-bold text-emerald-700">💰 Investment</p>
-                <p className="text-xs text-muted-foreground mt-1">Looking for seed funding to scale manufacturing.</p>
-              </div>
-              <div className="border rounded-lg p-3 hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors">
-                <p className="font-bold text-blue-700">🏛 Gov Pilot</p>
-                <p className="text-xs text-muted-foreground mt-1">Ready for municipal deployment in Tier-1 cities.</p>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-6 space-y-4">
+              <h3 className="font-extrabold text-lg flex items-center gap-2"><Briefcase className="w-5 h-5 text-primary" /> Opportunities</h3>
+              <p className="text-sm text-muted-foreground">The startup is actively looking for:</p>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('GOVERNMENT_PILOT'); setOppModalOpen(true); }}>
+                  <span>🤝 Gov Pilot</span> <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+                </Button>
+                <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('INVESTMENT'); setOppModalOpen(true); }}>
+                  <span>💰 Investment</span> <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+                </Button>
+                <Button variant="outline" className="w-full justify-between font-bold" onClick={() => { setSelectedOpp('TECHNICAL_COLLABORATION'); setOppModalOpen(true); }}>
+                  <span>🔬 Collaboration</span> <ChevronLeft className="w-4 h-4 rotate-180 text-muted-foreground" />
+                </Button>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardHeader className="bg-muted/30 pb-4">
-              <h3 className="font-black uppercase tracking-wider text-sm">Momentum</h3>
-            </CardHeader>
-            <CardContent className="pt-6 flex flex-col items-center justify-center">
-              <div className="relative">
-                <svg className="w-32 h-32 transform -rotate-90">
-                  <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-muted/30" />
-                  <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="377" strokeDashoffset={377 - (377 * innovation.momentumScore) / 100} className="text-rose-500 transition-all duration-1000" />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-black text-rose-600">{innovation.momentumScore}</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Score</span>
-                </div>
+            <CardContent className="p-6 space-y-4">
+              <h3 className="font-extrabold text-lg">Journey</h3>
+              <div className="space-y-6 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
+                {['IDEA', 'PROTOTYPE', 'MVP', 'PILOT'].map((s) => (
+                  <div key={s} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div className={`flex items-center justify-center w-5 h-5 rounded-full border-4 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${['IDEA', 'PROTOTYPE', 'MVP'].includes(s) || (s==='PILOT' && innovation.stage==='PILOT') ? 'bg-primary border-primary/30' : 'bg-muted border-background'}`}></div>
+                    <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded-lg border bg-background shadow-sm">
+                      <div className="font-bold text-sm mb-1">{s}</div>
+                      <div className="text-xs text-muted-foreground">Achieved milestone successfully.</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-sm font-bold text-rose-600 mt-4 bg-rose-50 px-3 py-1 rounded-full">🔥 Rising Fast</p>
             </CardContent>
           </Card>
         </div>
       </div>
-      
+
+      <Dialog open={oppModalOpen} onOpenChange={setOppModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Express Interest</DialogTitle>
+            <DialogDescription>
+              Connect with {innovation.startup?.name} regarding {selectedOpp?.replace('_', ' ')}.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea 
+            className="min-h-[120px]" 
+            placeholder="Introduce yourself and explain the opportunity..." 
+            value={oppMessage}
+            onChange={e => setOppMessage(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOppModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendOpportunity} disabled={!oppMessage.trim()} className="bg-indigo-600 hover:bg-indigo-700">Send Request</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

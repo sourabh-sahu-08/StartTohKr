@@ -125,11 +125,11 @@ export default function OnboardingPage() {
             
             <div className="flex gap-2 pt-4">
               {step === 2 && (
-                <Button type="button" variant="outline" className="w-full" onClick={handleBack}>
+                <Button type="button" variant="outline" className="flex-1" onClick={handleBack}>
                   Back
                 </Button>
               )}
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="flex-1" disabled={isLoading}>
                 {step === 1 ? "Next" : (isLoading ? "Saving..." : "Complete Setup")}
               </Button>
             </div>
